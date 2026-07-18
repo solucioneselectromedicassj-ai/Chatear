@@ -461,8 +461,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
 </head>
 <body>
 <div id="root"></div>
-<script>import { jsxDEV as _jsxDEV } from "react/jsx-dev-runtime";
-const {
+<script>const {
   useState,
   useEffect,
   useRef,
@@ -538,68 +537,49 @@ function Login({
     localStorage.setItem(LS_KEY, JSON.stringify(user));
     onLogin(user);
   };
-  return /*#__PURE__*/_jsxDEV("div", {
-    className: "login-wrap",
-    children: [/*#__PURE__*/_jsxDEV("div", {
-      className: "blob blob1"
-    }, void 0, false), /*#__PURE__*/_jsxDEV("div", {
-      className: "blob blob2"
-    }, void 0, false), /*#__PURE__*/_jsxDEV("div", {
-      className: "blob blob3"
-    }, void 0, false), /*#__PURE__*/_jsxDEV("div", {
-      className: "login-card",
-      children: [/*#__PURE__*/_jsxDEV("h1", {
-        children: "¡Hola! 👋"
-      }, void 0, false), /*#__PURE__*/_jsxDEV("p", {
-        children: "Entrá con tu nombre y tu clave secreta"
-      }, void 0, false), /*#__PURE__*/_jsxDEV("div", {
-        className: "field",
-        children: [/*#__PURE__*/_jsxDEV("label", {
-          children: "Tu nombre"
-        }, void 0, false), /*#__PURE__*/_jsxDEV("input", {
-          value: name,
-          onChange: e => setName(e.target.value),
-          placeholder: "Ej: Lu",
-          maxLength: 20
-        }, void 0, false)]
-      }, void 0, true), /*#__PURE__*/_jsxDEV("div", {
-        className: "field",
-        children: [/*#__PURE__*/_jsxDEV("label", {
-          children: "Tu clave"
-        }, void 0, false), /*#__PURE__*/_jsxDEV("input", {
-          value: pin,
-          onChange: e => setPin(e.target.value),
-          placeholder: "••••",
-          type: "password",
-          inputMode: "numeric",
-          maxLength: 12
-        }, void 0, false)]
-      }, void 0, true), /*#__PURE__*/_jsxDEV("div", {
-        className: "field",
-        children: [/*#__PURE__*/_jsxDEV("label", {
-          children: "¿A qué grupo entrás?"
-        }, void 0, false), /*#__PURE__*/_jsxDEV("div", {
-          className: "group-check",
-          children: groups.map(g => /*#__PURE__*/_jsxDEV("div", {
-            className: "chip" + (selected.includes(g.id) ? " active" : ""),
-            onClick: () => toggle(g.id),
-            children: g.name
-          }, g.id, false))
-        }, void 0, false)]
-      }, void 0, true), err && /*#__PURE__*/_jsxDEV("div", {
-        className: "error-msg",
-        children: err
-      }, void 0, false), /*#__PURE__*/_jsxDEV("button", {
-        className: "btn",
-        onClick: submit,
-        disabled: loading,
-        children: loading ? "Entrando..." : "Entrar"
-      }, void 0, false), /*#__PURE__*/_jsxDEV("div", {
-        className: "hint",
-        children: "Si es la primera vez, tu clave queda guardada. La podés cambiar después."
-      }, void 0, false)]
-    }, void 0, true)]
-  }, void 0, true);
+  return /*#__PURE__*/React.createElement("div", {
+    className: "login-wrap"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "blob blob1"
+  }), /*#__PURE__*/React.createElement("div", {
+    className: "blob blob2"
+  }), /*#__PURE__*/React.createElement("div", {
+    className: "blob blob3"
+  }), /*#__PURE__*/React.createElement("div", {
+    className: "login-card"
+  }, /*#__PURE__*/React.createElement("h1", null, "¡Hola! 👋"), /*#__PURE__*/React.createElement("p", null, "Entrá con tu nombre y tu clave secreta"), /*#__PURE__*/React.createElement("div", {
+    className: "field"
+  }, /*#__PURE__*/React.createElement("label", null, "Tu nombre"), /*#__PURE__*/React.createElement("input", {
+    value: name,
+    onChange: e => setName(e.target.value),
+    placeholder: "Ej: Lu",
+    maxLength: 20
+  })), /*#__PURE__*/React.createElement("div", {
+    className: "field"
+  }, /*#__PURE__*/React.createElement("label", null, "Tu clave"), /*#__PURE__*/React.createElement("input", {
+    value: pin,
+    onChange: e => setPin(e.target.value),
+    placeholder: "••••",
+    type: "password",
+    inputMode: "numeric",
+    maxLength: 12
+  })), /*#__PURE__*/React.createElement("div", {
+    className: "field"
+  }, /*#__PURE__*/React.createElement("label", null, "¿A qué grupo entrás?"), /*#__PURE__*/React.createElement("div", {
+    className: "group-check"
+  }, groups.map(g => /*#__PURE__*/React.createElement("div", {
+    key: g.id,
+    className: "chip" + (selected.includes(g.id) ? " active" : ""),
+    onClick: () => toggle(g.id)
+  }, g.name)))), err && /*#__PURE__*/React.createElement("div", {
+    className: "error-msg"
+  }, err), /*#__PURE__*/React.createElement("button", {
+    className: "btn",
+    onClick: submit,
+    disabled: loading
+  }, loading ? "Entrando..." : "Entrar"), /*#__PURE__*/React.createElement("div", {
+    className: "hint"
+  }, "Si es la primera vez, tu clave queda guardada. La podés cambiar después.")));
 }
 function SettingsModal({
   user,
@@ -634,53 +614,39 @@ function SettingsModal({
       onPinChanged();
     }, 900);
   };
-  return /*#__PURE__*/_jsxDEV("div", {
+  return /*#__PURE__*/React.createElement("div", {
     className: "overlay",
-    onClick: onClose,
-    children: /*#__PURE__*/_jsxDEV("div", {
-      className: "modal",
-      onClick: e => e.stopPropagation(),
-      children: [/*#__PURE__*/_jsxDEV("div", {
-        className: "close-row",
-        children: /*#__PURE__*/_jsxDEV("button", {
-          className: "icon-btn",
-          onClick: onClose,
-          children: "✕"
-        }, void 0, false)
-      }, void 0, false), /*#__PURE__*/_jsxDEV("h3", {
-        children: "Cambiar clave"
-      }, void 0, false), /*#__PURE__*/_jsxDEV("div", {
-        className: "field",
-        children: [/*#__PURE__*/_jsxDEV("label", {
-          children: "Clave actual"
-        }, void 0, false), /*#__PURE__*/_jsxDEV("input", {
-          type: "password",
-          value: oldPin,
-          onChange: e => setOldPin(e.target.value)
-        }, void 0, false)]
-      }, void 0, true), /*#__PURE__*/_jsxDEV("div", {
-        className: "field",
-        children: [/*#__PURE__*/_jsxDEV("label", {
-          children: "Clave nueva"
-        }, void 0, false), /*#__PURE__*/_jsxDEV("input", {
-          type: "password",
-          value: newPin,
-          onChange: e => setNewPin(e.target.value)
-        }, void 0, false)]
-      }, void 0, true), msg && /*#__PURE__*/_jsxDEV("div", {
-        className: "error-msg",
-        style: {
-          color: msg.includes('actualizada') ? '#1D9A6C' : '#D64545'
-        },
-        children: msg
-      }, void 0, false), /*#__PURE__*/_jsxDEV("button", {
-        className: "btn",
-        onClick: submit,
-        disabled: loading,
-        children: loading ? "Guardando..." : "Guardar"
-      }, void 0, false)]
-    }, void 0, true)
-  }, void 0, false);
+    onClick: onClose
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "modal",
+    onClick: e => e.stopPropagation()
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "close-row"
+  }, /*#__PURE__*/React.createElement("button", {
+    className: "icon-btn",
+    onClick: onClose
+  }, "✕")), /*#__PURE__*/React.createElement("h3", null, "Cambiar clave"), /*#__PURE__*/React.createElement("div", {
+    className: "field"
+  }, /*#__PURE__*/React.createElement("label", null, "Clave actual"), /*#__PURE__*/React.createElement("input", {
+    type: "password",
+    value: oldPin,
+    onChange: e => setOldPin(e.target.value)
+  })), /*#__PURE__*/React.createElement("div", {
+    className: "field"
+  }, /*#__PURE__*/React.createElement("label", null, "Clave nueva"), /*#__PURE__*/React.createElement("input", {
+    type: "password",
+    value: newPin,
+    onChange: e => setNewPin(e.target.value)
+  })), msg && /*#__PURE__*/React.createElement("div", {
+    className: "error-msg",
+    style: {
+      color: msg.includes('actualizada') ? '#1D9A6C' : '#D64545'
+    }
+  }, msg), /*#__PURE__*/React.createElement("button", {
+    className: "btn",
+    onClick: submit,
+    disabled: loading
+  }, loading ? "Guardando..." : "Guardar")));
 }
 function ChatApp({
   user,
@@ -818,118 +784,98 @@ function ChatApp({
     localStorage.removeItem(LS_KEY);
     onLogout();
   };
-  return /*#__PURE__*/_jsxDEV("div", {
-    className: "screen",
-    children: [/*#__PURE__*/_jsxDEV("div", {
-      className: "topbar",
-      children: [/*#__PURE__*/_jsxDEV("div", {
-        className: "avatar",
-        style: {
-          background: user.color
-        },
-        children: initials(user.name)
-      }, void 0, false), /*#__PURE__*/_jsxDEV("h2", {
-        children: "Charla"
-      }, void 0, false), /*#__PURE__*/_jsxDEV("button", {
-        className: "icon-btn",
-        onClick: () => setShowSettings(true),
-        children: "⚙️"
-      }, void 0, false), /*#__PURE__*/_jsxDEV("button", {
-        className: "icon-btn",
-        onClick: logout,
-        children: "🚪"
-      }, void 0, false)]
-    }, void 0, true), /*#__PURE__*/_jsxDEV("div", {
-      className: "tabs",
-      children: groups.map(g => /*#__PURE__*/_jsxDEV("div", {
-        className: "tab" + (activeGroup === g.id ? " active" : ""),
-        onClick: () => setActiveGroup(g.id),
-        children: g.name
-      }, g.id, false))
-    }, void 0, false), /*#__PURE__*/_jsxDEV("div", {
-      className: "chat-area",
-      ref: scrollRef,
-      children: [messages.length === 0 && /*#__PURE__*/_jsxDEV("div", {
-        className: "empty-state",
-        children: ["Todavía no hay mensajes.", /*#__PURE__*/_jsxDEV("br", {}, void 0, false), "¡Escribí el primero! 🎉"]
-      }, void 0, true), messages.map(m => {
-        const mine = m.user_id === user.id;
-        return /*#__PURE__*/_jsxDEV("div", {
-          className: "msg-row" + (mine ? " me" : ""),
-          children: [/*#__PURE__*/_jsxDEV("div", {
-            className: "avatar-sm",
-            style: {
-              background: m.sender_color
-            },
-            children: initials(m.sender_name)
-          }, void 0, false), /*#__PURE__*/_jsxDEV("div", {
-            className: "bubble",
-            children: [!mine && /*#__PURE__*/_jsxDEV("div", {
-              className: "sender-name",
-              children: m.sender_name
-            }, void 0, false), m.type === 'text' && /*#__PURE__*/_jsxDEV("div", {
-              children: m.content
-            }, void 0, false), m.type === 'photo' && /*#__PURE__*/_jsxDEV("img", {
-              src: m.media_path
-            }, void 0, false), m.type === 'audio' && /*#__PURE__*/_jsxDEV("audio", {
-              controls: true,
-              src: m.media_path
-            }, void 0, false), /*#__PURE__*/_jsxDEV("div", {
-              className: "time",
-              children: timeFmt(m.created_at)
-            }, void 0, false)]
-          }, void 0, true)]
-        }, m.id, true);
-      })]
-    }, void 0, true), /*#__PURE__*/_jsxDEV("div", {
-      className: "input-bar",
-      children: [/*#__PURE__*/_jsxDEV("input", {
-        type: "file",
-        accept: "image/*",
-        ref: fileRef,
-        style: {
-          display: 'none'
-        },
-        onChange: e => {
-          sendPhoto(e.target.files[0]);
-          e.target.value = '';
-        }
-      }, void 0, false), /*#__PURE__*/_jsxDEV("button", {
-        className: "round-btn",
-        onClick: () => fileRef.current.click(),
-        children: "📷"
-      }, void 0, false), /*#__PURE__*/_jsxDEV("input", {
-        type: "text",
-        value: text,
-        placeholder: "Escribí algo...",
-        onChange: e => setText(e.target.value),
-        onKeyDown: e => {
-          if (e.key === 'Enter') sendText();
-        }
-      }, void 0, false), text.trim() ? /*#__PURE__*/_jsxDEV("button", {
-        className: "round-btn send",
-        onClick: sendText,
-        children: "➤"
-      }, void 0, false) : /*#__PURE__*/_jsxDEV("button", {
-        className: "round-btn" + (recording ? " rec" : ""),
-        onMouseDown: startRecording,
-        onMouseUp: stopRecording,
-        onTouchStart: e => {
-          e.preventDefault();
-          startRecording();
-        },
-        onTouchEnd: e => {
-          e.preventDefault();
-          stopRecording();
-        },
-        children: "🎤"
-      }, void 0, false)]
-    }, void 0, true), showSettings && /*#__PURE__*/_jsxDEV(SettingsModal, {
-      user: user,
-      onClose: () => setShowSettings(false),
-      onPinChanged: () => setShowSettings(false)
-    }, void 0, false)]
-  }, void 0, true);
+  return /*#__PURE__*/React.createElement("div", {
+    className: "screen"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "topbar"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "avatar",
+    style: {
+      background: user.color
+    }
+  }, initials(user.name)), /*#__PURE__*/React.createElement("h2", null, "Charla"), /*#__PURE__*/React.createElement("button", {
+    className: "icon-btn",
+    onClick: () => setShowSettings(true)
+  }, "⚙️"), /*#__PURE__*/React.createElement("button", {
+    className: "icon-btn",
+    onClick: logout
+  }, "🚪")), /*#__PURE__*/React.createElement("div", {
+    className: "tabs"
+  }, groups.map(g => /*#__PURE__*/React.createElement("div", {
+    key: g.id,
+    className: "tab" + (activeGroup === g.id ? " active" : ""),
+    onClick: () => setActiveGroup(g.id)
+  }, g.name))), /*#__PURE__*/React.createElement("div", {
+    className: "chat-area",
+    ref: scrollRef
+  }, messages.length === 0 && /*#__PURE__*/React.createElement("div", {
+    className: "empty-state"
+  }, "Todavía no hay mensajes.", /*#__PURE__*/React.createElement("br", null), "¡Escribí el primero! 🎉"), messages.map(m => {
+    const mine = m.user_id === user.id;
+    return /*#__PURE__*/React.createElement("div", {
+      key: m.id,
+      className: "msg-row" + (mine ? " me" : "")
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "avatar-sm",
+      style: {
+        background: m.sender_color
+      }
+    }, initials(m.sender_name)), /*#__PURE__*/React.createElement("div", {
+      className: "bubble"
+    }, !mine && /*#__PURE__*/React.createElement("div", {
+      className: "sender-name"
+    }, m.sender_name), m.type === 'text' && /*#__PURE__*/React.createElement("div", null, m.content), m.type === 'photo' && /*#__PURE__*/React.createElement("img", {
+      src: m.media_path
+    }), m.type === 'audio' && /*#__PURE__*/React.createElement("audio", {
+      controls: true,
+      src: m.media_path
+    }), /*#__PURE__*/React.createElement("div", {
+      className: "time"
+    }, timeFmt(m.created_at))));
+  })), /*#__PURE__*/React.createElement("div", {
+    className: "input-bar"
+  }, /*#__PURE__*/React.createElement("input", {
+    type: "file",
+    accept: "image/*",
+    ref: fileRef,
+    style: {
+      display: 'none'
+    },
+    onChange: e => {
+      sendPhoto(e.target.files[0]);
+      e.target.value = '';
+    }
+  }), /*#__PURE__*/React.createElement("button", {
+    className: "round-btn",
+    onClick: () => fileRef.current.click()
+  }, "📷"), /*#__PURE__*/React.createElement("input", {
+    type: "text",
+    value: text,
+    placeholder: "Escribí algo...",
+    onChange: e => setText(e.target.value),
+    onKeyDown: e => {
+      if (e.key === 'Enter') sendText();
+    }
+  }), text.trim() ? /*#__PURE__*/React.createElement("button", {
+    className: "round-btn send",
+    onClick: sendText
+  }, "➤") : /*#__PURE__*/React.createElement("button", {
+    className: "round-btn" + (recording ? " rec" : ""),
+    onMouseDown: startRecording,
+    onMouseUp: stopRecording,
+    onTouchStart: e => {
+      e.preventDefault();
+      startRecording();
+    },
+    onTouchEnd: e => {
+      e.preventDefault();
+      stopRecording();
+    }
+  }, "🎤")), showSettings && /*#__PURE__*/React.createElement(SettingsModal, {
+    user: user,
+    onClose: () => setShowSettings(false),
+    onPinChanged: () => setShowSettings(false)
+  }));
 }
 function App() {
   const [user, setUser] = useState(() => {
@@ -939,14 +885,14 @@ function App() {
       return null;
     }
   });
-  if (!user) return /*#__PURE__*/_jsxDEV(Login, {
+  if (!user) return /*#__PURE__*/React.createElement(Login, {
     onLogin: setUser
-  }, void 0, false);
-  return /*#__PURE__*/_jsxDEV(ChatApp, {
+  });
+  return /*#__PURE__*/React.createElement(ChatApp, {
     user: user,
     onLogout: () => setUser(null)
-  }, void 0, false);
+  });
 }
-ReactDOM.createRoot(document.getElementById('root')).render(/*#__PURE__*/_jsxDEV(App, {}, void 0, false));</script>
+ReactDOM.createRoot(document.getElementById('root')).render(/*#__PURE__*/React.createElement(App, null));</script>
 </body>
 </html>
