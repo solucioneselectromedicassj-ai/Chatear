@@ -549,7 +549,7 @@ const SUPABASE_URL = "https://ejobycpstnbzkjnlebrd.supabase.co";
 const SUPABASE_KEY = "sb_publishable_D_Q2E8Eq4cfGDpwX1N7Jbg_XKR78XZH";
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 const LS_KEY = "charla_session_v1";
-const APP_VERSION = "v1.9 · diagnóstico de notificaciones";
+const APP_VERSION = "v2.1 · arreglo de video desde galería";
 const EMOJIS = ["😀", "😂", "🥰", "😍", "😘", "😜", "😎", "🤩", "🥳", "😇", "🙃", "😉", "😊", "😢", "😭", "😡", "😱", "🤔", "🙄", "😴", "👍", "👎", "👏", "🙌", "🙏", "💪", "✌️", "🤞", "👋", "🤝", "❤️", "🧡", "💛", "💚", "💙", "💜", "🖤", "💕", "💖", "💯", "🔥", "✨", "🎉", "🎂", "🎈", "🌈", "⭐", "☀️", "🌙", "🍕", "🍔", "🍟", "🍦", "🍩", "☕", "🐶", "🐱", "🦄", "🌸"];
 const STICKERS = ["😂", "😍", "🥳", "🔥", "❤️", "👍", "🎉", "😎", "🥺", "😭", "🙌", "💯", "🌈", "🦄", "🎂", "✨"];
 const SOUND_KEY = "charla_sound_pref";
@@ -1138,7 +1138,7 @@ function ChatThread({
         ascending: true
       }).limit(200);
       setMessages(data || []);
-      sb.rpc('mark_read', {
+      await sb.rpc('mark_read', {
         p_user_id: user.id,
         p_group_id: conversation.group_id
       });
@@ -1147,11 +1147,11 @@ function ChatThread({
         schema: 'public',
         table: 'chat_messages',
         filter: `group_id=eq.${conversation.group_id}`
-      }, payload => {
+      }, async payload => {
         setMessages(m => [...m, payload.new]);
         if (payload.new.user_id !== user.id) {
           if (!conversation.muted) playPing();
-          sb.rpc('mark_read', {
+          await sb.rpc('mark_read', {
             p_user_id: user.id,
             p_group_id: conversation.group_id
           });
@@ -1189,12 +1189,34 @@ function ChatThread({
   };
   const sendFile = async file => {
     if (!file) return;
-    const isVideo = file.type.startsWith('video');
-    const ext = file.name.split('.').pop() || (isVideo ? 'mp4' : 'jpg');
+    const rawExt = (file.name.split('.').pop() || '').toLowerCase();
+    const videoExts = ['mp4', 'mov', 'webm', 'm4v', '3gp', '3gpp', 'avi', 'mkv', 'ogv'];
+    const mimeByExt = {
+      mp4: 'video/mp4',
+      mov: 'video/quicktime',
+      webm: 'video/webm',
+      m4v: 'video/x-m4v',
+      '3gp': 'video/3gpp',
+      '3gpp': 'video/3gpp',
+      avi: 'video/x-msvideo',
+      mkv: 'video/x-matroska',
+      ogv: 'video/ogg',
+      jpg: 'image/jpeg',
+      jpeg: 'image/jpeg',
+      png: 'image/png',
+      gif: 'image/gif',
+      webp: 'image/webp',
+      heic: 'image/heic'
+    };
+    const isVideo = file.type.startsWith('video') || videoExts.includes(rawExt);
+    const ext = rawExt || (isVideo ? 'mp4' : 'jpg');
+    const contentType = file.type && file.type !== 'application/octet-stream' ? file.type : mimeByExt[ext] || (isVideo ? 'video/mp4' : 'image/jpeg');
     const path = `${isVideo ? 'videos' : 'photos'}/${crypto.randomUUID()}.${ext}`;
     const {
       error
-    } = await sb.storage.from('chat-media').upload(path, file);
+    } = await sb.storage.from('chat-media').upload(path, file, {
+      contentType
+    });
     if (error) {
       alert("No se pudo subir el archivo");
       return;
@@ -1387,18 +1409,10 @@ function App() {
       table: 'chat_messages'
     }, payload => {
       const msg = payload.new;
-      console.log('[inbox] evento recibido', msg);
-      if (msg.user_id === user.id) {
-        console.log('[inbox] descartado: es mío');
-        return;
-      }
+      if (msg.user_id === user.id) return;
       const conv = convRef.current.find(c => c.group_id === msg.group_id);
-      if (!conv) {
-        console.log('[inbox] descartado: no encuentro esa conversación en la lista', msg.group_id, convRef.current.map(c => c.group_id));
-        return;
-      }
+      if (!conv) return;
       const isOpen = msg.group_id === openGroupRef.current;
-      console.log('[inbox] conversación encontrada, muted=', conv.muted, 'isOpen=', isOpen);
       if (!isOpen) {
         setConversations(list => list.map(c => c.group_id === msg.group_id ? {
           ...c,
@@ -1420,11 +1434,8 @@ function App() {
           conv
         });
         toastTimer.current = setTimeout(() => setToast(null), 4500);
-        console.log('[inbox] cartel mostrado');
       }
-    }).subscribe(status => {
-      console.log('[inbox] estado del canal:', status);
-    });
+    }).subscribe();
     return () => sb.removeChannel(sub);
   }, [user]);
   if (!user) return /*#__PURE__*/React.createElement(Login, {
@@ -1434,7 +1445,7 @@ function App() {
     sb.rpc('mark_read', {
       p_user_id: user.id,
       p_group_id: c.group_id
-    });
+    }).then(() => {});
     setConversations(list => list.map(x => x.group_id === c.group_id ? {
       ...x,
       unread: false
