@@ -509,6 +509,17 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
     display:inline-block; width:10px; height:10px; border-radius:50%; background:var(--pink);
     margin-left:8px; vertical-align:middle; box-shadow:0 0 0 2px #fff;
   }
+
+  /* TOAST NOTIFICATION */
+  .toast{
+    position:fixed; top:14px; left:50%; transform:translateX(-50%); z-index:50;
+    background:var(--ink); color:#fff; border-radius:16px; padding:12px 18px;
+    max-width:90vw; width:360px; box-shadow:0 10px 30px -6px rgba(0,0,0,.4);
+    cursor:pointer; animation:toast-in .25s ease-out;
+  }
+  .toast-title{font-family:'Baloo 2',sans-serif; font-weight:700; font-size:14px; color:var(--yellow);}
+  .toast-body{font-weight:600; font-size:14px; margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  @keyframes toast-in{ from{ transform:translateX(-50%) translateY(-30px); opacity:0; } to{ transform:translateX(-50%) translateY(0); opacity:1; } }
 </style>
 </head>
 <body>
@@ -548,20 +559,45 @@ document.addEventListener('pointerdown', unlockAudio);
 document.addEventListener('touchstart', unlockAudio);
 function playPing() {
   try {
-    unlockAudio();
+    if (!sharedAudioCtx) {
+      sharedAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
     const ctx = sharedAudioCtx;
-    if (!ctx || ctx.state === 'suspended') return;
-    const o = ctx.createOscillator();
-    const g = ctx.createGain();
-    o.type = 'sine';
-    o.frequency.setValueAtTime(880, ctx.currentTime);
-    o.frequency.exponentialRampToValueAtTime(1320, ctx.currentTime + 0.1);
-    g.gain.setValueAtTime(0.15, ctx.currentTime);
-    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25);
-    o.connect(g);
-    g.connect(ctx.destination);
-    o.start();
-    o.stop(ctx.currentTime + 0.25);
+    const fire = () => {
+      try {
+        const o = ctx.createOscillator();
+        const g = ctx.createGain();
+        o.type = 'sine';
+        o.frequency.setValueAtTime(880, ctx.currentTime);
+        o.frequency.exponentialRampToValueAtTime(1320, ctx.currentTime + 0.1);
+        g.gain.setValueAtTime(0.15, ctx.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25);
+        o.connect(g);
+        g.connect(ctx.destination);
+        o.start();
+        o.stop(ctx.currentTime + 0.25);
+        // second little "blip" so it reads as a notification, not a glitch
+        setTimeout(() => {
+          try {
+            const o2 = ctx.createOscillator();
+            const g2 = ctx.createGain();
+            o2.type = 'sine';
+            o2.frequency.setValueAtTime(1100, ctx.currentTime);
+            g2.gain.setValueAtTime(0.13, ctx.currentTime);
+            g2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.18);
+            o2.connect(g2);
+            g2.connect(ctx.destination);
+            o2.start();
+            o2.stop(ctx.currentTime + 0.18);
+          } catch (e) {}
+        }, 140);
+      } catch (e) {}
+    };
+    if (ctx.state === 'suspended') {
+      ctx.resume().then(fire).catch(() => {});
+    } else {
+      fire();
+    }
   } catch (e) {}
 }
 function Login({
@@ -918,49 +954,15 @@ function CreateGroupModal({
 }
 function ConversationList({
   user,
+  conversations,
   onOpen,
+  onReload,
   onSettings,
   onLogout
 }) {
-  const [conversations, setConversations] = useState([]);
   const [showJoin, setShowJoin] = useState(false);
   const [showDM, setShowDM] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
-  const convRef = useRef([]);
-  const load = useCallback(() => {
-    sb.rpc('get_my_conversations', {
-      p_user_id: user.id
-    }).then(({
-      data
-    }) => {
-      setConversations(data || []);
-      convRef.current = data || [];
-    });
-  }, [user.id]);
-  useEffect(() => {
-    load();
-  }, [load]);
-  useEffect(() => {
-    const sub = sb.channel('inbox-' + user.id).on('postgres_changes', {
-      event: 'INSERT',
-      schema: 'public',
-      table: 'chat_messages'
-    }, payload => {
-      const msg = payload.new;
-      const conv = convRef.current.find(c => c.group_id === msg.group_id);
-      if (!conv || msg.user_id === user.id) return;
-      if (!conv.muted) playPing();
-      setConversations(list => list.map(c => c.group_id === msg.group_id ? {
-        ...c,
-        unread: true
-      } : c));
-      convRef.current = convRef.current.map(c => c.group_id === msg.group_id ? {
-        ...c,
-        unread: true
-      } : c);
-    }).subscribe();
-    return () => sb.removeChannel(sub);
-  }, [user.id]);
   const toggleMute = async (e, c) => {
     e.stopPropagation();
     await sb.rpc('set_mute', {
@@ -968,18 +970,7 @@ function ConversationList({
       p_group_id: c.group_id,
       p_muted: !c.muted
     });
-    load();
-  };
-  const openConv = c => {
-    sb.rpc('mark_read', {
-      p_user_id: user.id,
-      p_group_id: c.group_id
-    });
-    setConversations(list => list.map(x => x.group_id === c.group_id ? {
-      ...x,
-      unread: false
-    } : x));
-    onOpen(c);
+    onReload();
   };
   return /*#__PURE__*/React.createElement("div", {
     className: "screen"
@@ -1003,7 +994,7 @@ function ConversationList({
   }, "Todavía no estás en ningún chat.", /*#__PURE__*/React.createElement("br", null), "Unite a un grupo o mandá un mensaje privado."), conversations.map(c => /*#__PURE__*/React.createElement("div", {
     key: c.group_id,
     className: "conv-row",
-    onClick: () => openConv(c)
+    onClick: () => onOpen(c)
   }, /*#__PURE__*/React.createElement("div", {
     className: "avatar",
     style: {
@@ -1038,14 +1029,14 @@ function ConversationList({
     onClose: () => setShowJoin(false),
     onJoined: () => {
       setShowJoin(false);
-      load();
+      onReload();
     }
   }), showDM && /*#__PURE__*/React.createElement(NewDMModal, {
     user: user,
     onClose: () => setShowDM(false),
     onStarted: (groupId, otherName) => {
       setShowDM(false);
-      load();
+      onReload();
       onOpen({
         group_id: groupId,
         display_name: otherName,
@@ -1055,7 +1046,7 @@ function ConversationList({
   }), showCreate && /*#__PURE__*/React.createElement(CreateGroupModal, {
     user: user,
     onClose: () => setShowCreate(false),
-    onCreated: load
+    onCreated: onReload
   }));
 }
 function ChatThread({
@@ -1300,19 +1291,97 @@ function App() {
   });
   const [conversation, setConversation] = useState(null);
   const [showSettings, setShowSettings] = useState(false);
+  const [conversations, setConversations] = useState([]);
+  const [toast, setToast] = useState(null);
+  const convRef = useRef([]);
+  const openGroupRef = useRef(null);
+  const toastTimer = useRef(null);
+  useEffect(() => {
+    openGroupRef.current = conversation ? conversation.group_id : null;
+  }, [conversation]);
+  const loadConversations = useCallback(() => {
+    if (!user) return;
+    sb.rpc('get_my_conversations', {
+      p_user_id: user.id
+    }).then(({
+      data
+    }) => {
+      setConversations(data || []);
+      convRef.current = data || [];
+    });
+  }, [user]);
+  useEffect(() => {
+    loadConversations();
+  }, [loadConversations]);
+  useEffect(() => {
+    if (!user) return;
+    const sub = sb.channel('inbox-' + user.id).on('postgres_changes', {
+      event: 'INSERT',
+      schema: 'public',
+      table: 'chat_messages'
+    }, payload => {
+      const msg = payload.new;
+      if (msg.user_id === user.id) return;
+      const conv = convRef.current.find(c => c.group_id === msg.group_id);
+      if (!conv) return;
+      if (msg.group_id === openGroupRef.current) {
+        // already inside that thread — it handles its own sound/read state
+        return;
+      }
+      setConversations(list => list.map(c => c.group_id === msg.group_id ? {
+        ...c,
+        unread: true
+      } : c));
+      convRef.current = convRef.current.map(c => c.group_id === msg.group_id ? {
+        ...c,
+        unread: true
+      } : c);
+      if (!conv.muted) {
+        playPing();
+        const preview = msg.type === 'text' ? msg.content : msg.type === 'sticker' ? msg.content : msg.type === 'photo' ? '📷 Foto' : msg.type === 'video' ? '🎥 Video' : '🎤 Audio';
+        clearTimeout(toastTimer.current);
+        setToast({
+          groupId: msg.group_id,
+          title: `${msg.sender_name} · ${conv.display_name}`,
+          body: preview,
+          conv
+        });
+        toastTimer.current = setTimeout(() => setToast(null), 4500);
+      }
+    }).subscribe();
+    return () => sb.removeChannel(sub);
+  }, [user]);
   if (!user) return /*#__PURE__*/React.createElement(Login, {
     onLogin: setUser
   });
-  if (conversation) {
-    return /*#__PURE__*/React.createElement(ChatThread, {
-      user: user,
-      conversation: conversation,
-      onBack: () => setConversation(null)
+  const openConv = c => {
+    sb.rpc('mark_read', {
+      p_user_id: user.id,
+      p_group_id: c.group_id
     });
-  }
-  return /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(ConversationList, {
+    setConversations(list => list.map(x => x.group_id === c.group_id ? {
+      ...x,
+      unread: false
+    } : x));
+    setToast(null);
+    setConversation(c);
+  };
+  return /*#__PURE__*/React.createElement(React.Fragment, null, toast && /*#__PURE__*/React.createElement("div", {
+    className: "toast",
+    onClick: () => openConv(toast.conv)
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "toast-title"
+  }, toast.title), /*#__PURE__*/React.createElement("div", {
+    className: "toast-body"
+  }, toast.body)), conversation ? /*#__PURE__*/React.createElement(ChatThread, {
     user: user,
-    onOpen: setConversation,
+    conversation: conversation,
+    onBack: () => setConversation(null)
+  }) : /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(ConversationList, {
+    user: user,
+    conversations: conversations,
+    onOpen: openConv,
+    onReload: loadConversations,
     onSettings: () => setShowSettings(true),
     onLogout: () => {
       localStorage.removeItem(LS_KEY);
@@ -1321,7 +1390,7 @@ function App() {
   }), showSettings && /*#__PURE__*/React.createElement(SettingsModal, {
     user: user,
     onClose: () => setShowSettings(false)
-  }));
+  })));
 }
 ReactDOM.createRoot(document.getElementById('root')).render(/*#__PURE__*/React.createElement(App, null));</script>
 </body>
