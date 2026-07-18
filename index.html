@@ -532,6 +532,9 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
     text-align:center; font-size:11px; color:var(--ink-soft); font-weight:700;
     padding:4px 0 8px; background:var(--card);
   }
+
+  /* TEST NOTIFICATION BUTTON */
+  .fab-test{background:var(--mint); width:100%;}
 </style>
 </head>
 <body>
@@ -546,7 +549,7 @@ const SUPABASE_URL = "https://ejobycpstnbzkjnlebrd.supabase.co";
 const SUPABASE_KEY = "sb_publishable_D_Q2E8Eq4cfGDpwX1N7Jbg_XKR78XZH";
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 const LS_KEY = "charla_session_v1";
-const APP_VERSION = "v1.7 · sonidos y notificaciones";
+const APP_VERSION = "v1.8 · botón de prueba de notificación";
 const EMOJIS = ["😀", "😂", "🥰", "😍", "😘", "😜", "😎", "🤩", "🥳", "😇", "🙃", "😉", "😊", "😢", "😭", "😡", "😱", "🤔", "🙄", "😴", "👍", "👎", "👏", "🙌", "🙏", "💪", "✌️", "🤞", "👋", "🤝", "❤️", "🧡", "💛", "💚", "💙", "💜", "🖤", "💕", "💖", "💯", "🔥", "✨", "🎉", "🎂", "🎈", "🌈", "⭐", "☀️", "🌙", "🍕", "🍔", "🍟", "🍦", "🍩", "☕", "🐶", "🐱", "🦄", "🌸"];
 const STICKERS = ["😂", "😍", "🥳", "🔥", "❤️", "👍", "🎉", "😎", "🥺", "😭", "🙌", "💯", "🌈", "🦄", "🎂", "✨"];
 const SOUND_KEY = "charla_sound_pref";
@@ -1013,7 +1016,8 @@ function ConversationList({
   onOpen,
   onReload,
   onSettings,
-  onLogout
+  onLogout,
+  onTestToast
 }) {
   const [showJoin, setShowJoin] = useState(false);
   const [showDM, setShowDM] = useState(false);
@@ -1080,6 +1084,11 @@ function ConversationList({
     className: "fab fab-dm",
     onClick: () => setShowDM(true)
   }, "💬 Privado")), /*#__PURE__*/React.createElement("div", {
+    className: "fab-row"
+  }, /*#__PURE__*/React.createElement("button", {
+    className: "fab fab-test",
+    onClick: onTestToast
+  }, "🔔 Probar notificación")), /*#__PURE__*/React.createElement("div", {
     className: "version-tag"
   }, APP_VERSION), showJoin && /*#__PURE__*/React.createElement(JoinGroupModal, {
     user: user,
@@ -1422,9 +1431,22 @@ function App() {
     setToast(null);
     setConversation(c);
   };
+  const testToast = () => {
+    playPing();
+    clearTimeout(toastTimer.current);
+    setToast({
+      groupId: null,
+      title: "Prueba · Charla",
+      body: "Si ves esto, el cartel funciona 🎉",
+      conv: null
+    });
+    toastTimer.current = setTimeout(() => setToast(null), 4500);
+  };
   return /*#__PURE__*/React.createElement(React.Fragment, null, toast && /*#__PURE__*/React.createElement("div", {
     className: "toast",
-    onClick: () => openConv(toast.conv)
+    onClick: () => {
+      if (toast.conv) openConv(toast.conv);else setToast(null);
+    }
   }, /*#__PURE__*/React.createElement("div", {
     className: "toast-title"
   }, toast.title), /*#__PURE__*/React.createElement("div", {
@@ -1442,7 +1464,8 @@ function App() {
     onLogout: () => {
       localStorage.removeItem(LS_KEY);
       setUser(null);
-    }
+    },
+    onTestToast: testToast
   }), showSettings && /*#__PURE__*/React.createElement(SettingsModal, {
     user: user,
     onClose: () => setShowSettings(false)
