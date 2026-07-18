@@ -535,6 +535,21 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
 
   /* TEST NOTIFICATION BUTTON */
   .fab-test{background:var(--mint); width:100%;}
+
+  /* UNREAD BADGE + BANNER */
+  .topbar .avatar{position:relative;}
+  .badge-count{
+    position:absolute; top:-6px; right:-6px; background:#FF3B30; color:#fff;
+    font-family:'Baloo 2',sans-serif; font-size:11px; font-weight:700; line-height:1;
+    min-width:18px; height:18px; border-radius:9px; display:flex; align-items:center; justify-content:center;
+    padding:0 4px; border:2px solid #fff;
+  }
+  .unread-banner{
+    background:var(--yellow); color:var(--ink); font-weight:800; font-size:13px; text-align:center;
+    padding:8px; border-bottom:2px solid var(--ink);
+  }
+  .conv-row.conv-unread{background:#FFF3F8;}
+  .conv-row.conv-unread .conv-name{color:var(--pink-dark);}
 </style>
 </head>
 <body>
@@ -549,7 +564,7 @@ const SUPABASE_URL = "https://ejobycpstnbzkjnlebrd.supabase.co";
 const SUPABASE_KEY = "sb_publishable_D_Q2E8Eq4cfGDpwX1N7Jbg_XKR78XZH";
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 const LS_KEY = "charla_session_v1";
-const APP_VERSION = "v2.1 · arreglo de video desde galería";
+const APP_VERSION = "v2.2 · aviso visual de mensajes sin leer";
 const EMOJIS = ["😀", "😂", "🥰", "😍", "😘", "😜", "😎", "🤩", "🥳", "😇", "🙃", "😉", "😊", "😢", "😭", "😡", "😱", "🤔", "🙄", "😴", "👍", "👎", "👏", "🙌", "🙏", "💪", "✌️", "🤞", "👋", "🤝", "❤️", "🧡", "💛", "💚", "💙", "💜", "🖤", "💕", "💖", "💯", "🔥", "✨", "🎉", "🎂", "🎈", "🌈", "⭐", "☀️", "🌙", "🍕", "🍔", "🍟", "🍦", "🍩", "☕", "🐶", "🐱", "🦄", "🌸"];
 const STICKERS = ["😂", "😍", "🥳", "🔥", "❤️", "👍", "🎉", "😎", "🥺", "😭", "🙌", "💯", "🌈", "🦄", "🎂", "✨"];
 const SOUND_KEY = "charla_sound_pref";
@@ -1031,6 +1046,7 @@ function ConversationList({
     });
     onReload();
   };
+  const unreadCount = conversations.filter(c => c.unread).length;
   return /*#__PURE__*/React.createElement("div", {
     className: "screen"
   }, /*#__PURE__*/React.createElement("div", {
@@ -1040,19 +1056,23 @@ function ConversationList({
     style: {
       background: user.color
     }
-  }, initials(user.name)), /*#__PURE__*/React.createElement("h2", null, "Charla"), /*#__PURE__*/React.createElement("button", {
+  }, initials(user.name), unreadCount > 0 && /*#__PURE__*/React.createElement("span", {
+    className: "badge-count"
+  }, unreadCount)), /*#__PURE__*/React.createElement("h2", null, "Charla"), /*#__PURE__*/React.createElement("button", {
     className: "icon-btn",
     onClick: onSettings
   }, "⚙️"), /*#__PURE__*/React.createElement("button", {
     className: "icon-btn",
     onClick: onLogout
-  }, "🚪")), /*#__PURE__*/React.createElement("div", {
+  }, "🚪")), unreadCount > 0 && /*#__PURE__*/React.createElement("div", {
+    className: "unread-banner"
+  }, "📬 Tenés ", unreadCount, " chat", unreadCount > 1 ? 's' : '', " sin leer"), /*#__PURE__*/React.createElement("div", {
     className: "conv-list"
   }, conversations.length === 0 && /*#__PURE__*/React.createElement("div", {
     className: "empty-state"
   }, "Todavía no estás en ningún chat.", /*#__PURE__*/React.createElement("br", null), "Unite a un grupo o mandá un mensaje privado."), conversations.map(c => /*#__PURE__*/React.createElement("div", {
     key: c.group_id,
-    className: "conv-row",
+    className: "conv-row" + (c.unread ? " conv-unread" : ""),
     onClick: () => onOpen(c)
   }, /*#__PURE__*/React.createElement("div", {
     className: "avatar",
@@ -1401,6 +1421,13 @@ function App() {
   useEffect(() => {
     loadConversations();
   }, [loadConversations]);
+  useEffect(() => {
+    const unreadCount = conversations.filter(c => c.unread).length;
+    document.title = unreadCount > 0 ? `(${unreadCount}) Charla` : "Charla";
+    try {
+      if (unreadCount > 0 && navigator.setAppBadge) navigator.setAppBadge(unreadCount);else if (navigator.clearAppBadge) navigator.clearAppBadge();
+    } catch (e) {}
+  }, [conversations]);
   useEffect(() => {
     if (!user) return;
     const sub = sb.channel('inbox-' + user.id).on('postgres_changes', {
