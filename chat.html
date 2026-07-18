@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no" />
+<title>Charla</title>
+<link rel="manifest" href="data:application/json;base64,eyJuYW1lIjoiQ2hhcmxhIiwic2hvcnRfbmFtZSI6IkNoYXJsYSIsInN0YXJ0X3VybCI6Ii4iLCJkaXNwbGF5Ijoic3RhbmRhbG9uZSIsImJhY2tncm91bmRfY29sb3IiOiIjRkZGNkZCIiwidGhlbWVfY29sb3IiOiIjRkY0RDhEIn0=" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+  :root{
+    --bg:#FFF6FB;
+    --pink:#FF4D8D;
+    --pink-dark:#E8397A;
+    --yellow:#FFC845;
+    --mint:#3DDC97;
+    --ink:#2B2140;
+    --ink-soft:#6B5C7E;
+    --card:#FFFFFF;
+    --bubble-me:#FF4D8D;
+    --bubble-me-text:#fff;
+    --bubble-other:#F1E9F7;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font-family:'Nunito', sans-serif;
+    overscroll-behavior:none;
+  }
+  h1,h2,h3,.display{font-family:'Baloo 2', sans-serif;}
+  #root{height:100%;}
+  .screen{
+    height:100dvh; display:flex; flex-direction:column;
+    max-width:520px; margin:0 auto; position:relative;
+    background:var(--bg);
+  }
+  /* LOGIN */
+  .login-wrap{
+    flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    padding:24px; position:relative; overflow:hidden;
+  }
+  .blob{position:absolute; border-radius:50%; filter:blur(0px); opacity:.55;}
+  .blob1{width:220px;height:220px; background:var(--yellow); top:-60px; left:-60px;}
+  .blob2{width:180px;height:180px; background:var(--mint); bottom:-50px; right:-50px;}
+  .blob3{width:120px;height:120px; background:var(--pink); top:40%; right:-40px; opacity:.35;}
+  .login-card{
+    background:var(--card); border-radius:28px; padding:32px 28px; width:100%; max-width:360px;
+    box-shadow:0 20px 40px -12px rgba(43,33,64,.18); position:relative; z-index:2;
+    border:3px solid var(--ink);
+  }
+  .login-card h1{margin:0 0 4px; font-size:32px; color:var(--ink);}
+  .login-card p{margin:0 0 22px; color:var(--ink-soft); font-weight:600; font-size:14px;}
+  .field{margin-bottom:14px;}
+  .field label{display:block; font-weight:800; font-size:12px; text-transform:uppercase; letter-spacing:.04em; color:var(--ink-soft); margin-bottom:6px;}
+  .field input{
+    width:100%; padding:14px 16px; border-radius:16px; border:2.5px solid #ECE3F2;
+    font-size:17px; font-family:'Nunito',sans-serif; font-weight:700; color:var(--ink);
+    background:#FBF8FD; outline:none; transition:border-color .15s;
+  }
+  .field input:focus{border-color:var(--pink);}
+  .btn{
+    width:100%; padding:15px; border-radius:16px; border:none; font-family:'Baloo 2',sans-serif;
+    font-weight:700; font-size:18px; cursor:pointer; color:#fff; background:var(--pink);
+    box-shadow:0 6px 0 var(--pink-dark); transition:transform .08s;
+  }
+  .btn:active{transform:translateY(4px); box-shadow:0 2px 0 var(--pink-dark);}
+  .btn:disabled{opacity:.5; cursor:default;}
+  .error-msg{color:#D64545; font-weight:700; font-size:13px; margin:-6px 0 12px;}
+  .hint{margin-top:16px; font-size:12px; color:var(--ink-soft); text-align:center; font-weight:600;}
+
+  /* GROUP PICKER */
+  .group-check{display:flex; gap:10px; margin-bottom:18px;}
+  .chip{
+    flex:1; text-align:center; padding:12px 8px; border-radius:14px; border:2.5px solid #ECE3F2;
+    font-weight:800; cursor:pointer; font-size:14px; user-select:none; background:#FBF8FD;
+  }
+  .chip.active{border-color:var(--mint); background:#E7FBF2; color:#1D9A6C;}
+
+  /* HEADER */
+  .topbar{
+    display:flex; align-items:center; gap:10px; padding:14px 16px; background:var(--card);
+    border-bottom:3px solid var(--ink); position:sticky; top:0; z-index:5;
+  }
+  .avatar{
+    width:38px; height:38px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+    font-family:'Baloo 2',sans-serif; font-weight:700; color:#fff; font-size:16px; flex-shrink:0;
+    border:2px solid var(--ink);
+  }
+  .topbar h2{margin:0; font-size:18px; flex:1;}
+  .icon-btn{
+    background:none; border:none; font-size:20px; cursor:pointer; padding:6px; border-radius:10px;
+  }
+  .icon-btn:active{background:#F1E9F7;}
+  .tabs{display:flex; gap:8px; padding:10px 16px 0; background:var(--card);}
+  .tab{
+    padding:9px 16px; border-radius:14px 14px 0 0; font-weight:800; font-size:14px; cursor:pointer;
+    color:var(--ink-soft); border:3px solid transparent; border-bottom:none;
+  }
+  .tab.active{ color:var(--ink); border-color:var(--ink); background:var(--bg); }
+
+  /* CHAT */
+  .chat-area{flex:1; overflow-y:auto; padding:16px 12px 8px; display:flex; flex-direction:column; gap:10px;}
+  .empty-state{margin:auto; text-align:center; color:var(--ink-soft); font-weight:700; padding:20px;}
+  .msg-row{display:flex; gap:8px; max-width:88%;}
+  .msg-row.me{align-self:flex-end; flex-direction:row-reverse;}
+  .msg-row .avatar-sm{
+    width:28px;height:28px;border-radius:50%; flex-shrink:0; display:flex; align-items:center; justify-content:center;
+    font-family:'Baloo 2',sans-serif; font-size:12px; font-weight:700; color:#fff; margin-top:2px;
+  }
+  .bubble{
+    padding:10px 14px; border-radius:18px; position:relative; word-wrap:break-word;
+    font-weight:600; font-size:15.5px; line-height:1.35;
+  }
+  .msg-row:not(.me) .bubble{background:var(--bubble-other); color:var(--ink); border-bottom-left-radius:4px;}
+  .msg-row.me .bubble{background:var(--bubble-me); color:var(--bubble-me-text); border-bottom-right-radius:4px;}
+  .sender-name{font-size:11px; font-weight:800; margin-bottom:2px; opacity:.7;}
+  .bubble img{max-width:220px; border-radius:12px; display:block; margin-top:2px;}
+  .bubble audio{margin-top:2px; max-width:220px; height:36px;}
+  .time{font-size:10px; opacity:.55; margin-top:3px; font-weight:700;}
+
+  /* INPUT BAR */
+  .input-bar{
+    display:flex; align-items:center; gap:8px; padding:10px 12px;
+    background:var(--card); border-top:3px solid var(--ink);
+  }
+  .input-bar input[type=text]{
+    flex:1; border:2.5px solid #ECE3F2; border-radius:20px; padding:11px 16px; font-size:15px;
+    font-family:'Nunito',sans-serif; font-weight:600; outline:none; background:#FBF8FD;
+  }
+  .input-bar input[type=text]:focus{border-color:var(--pink);}
+  .round-btn{
+    width:44px; height:44px; border-radius:50%; border:2.5px solid var(--ink); background:var(--yellow);
+    display:flex; align-items:center; justify-content:center; font-size:19px; cursor:pointer; flex-shrink:0;
+  }
+  .round-btn.send{background:var(--pink); color:#fff; border-color:var(--pink-dark);}
+  .round-btn.rec{background:#FF6B6B; color:#fff; border-color:#C93F3F;}
+  .round-btn:active{transform:scale(.93);}
+
+  /* SETTINGS MODAL */
+  .overlay{position:fixed; inset:0; background:rgba(43,33,64,.45); display:flex; align-items:flex-end; justify-content:center; z-index:20;}
+  .modal{
+    background:var(--card); border-radius:24px 24px 0 0; padding:24px; width:100%; max-width:520px;
+    border:3px solid var(--ink); border-bottom:none;
+  }
+  .modal h3{margin:0 0 16px;}
+  .close-row{display:flex; justify-content:flex-end;}
+  ::-webkit-scrollbar{width:0;}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel" data-presets="react">
+const { useState, useEffect, useRef, useCallback } = React;
+
+const SUPABASE_URL = "https://ejobycpstnbzkjnlebrd.supabase.co";
+const SUPABASE_KEY = "sb_publishable_D_Q2E8Eq4cfGDpwX1N7Jbg_XKR78XZH";
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+const LS_KEY = "charla_session_v1";
+
+function initials(name){
+  return (name||"?").trim().slice(0,2).toUpperCase();
+}
+
+function timeFmt(iso){
+  const d = new Date(iso);
+  return d.toLocaleTimeString('es-AR', {hour:'2-digit', minute:'2-digit'});
+}
+
+function Login({ onLogin }){
+  const [name, setName] = useState("");
+  const [pin, setPin] = useState("");
+  const [groups, setGroups] = useState([]);
+  const [selected, setSelected] = useState([]);
+  const [err, setErr] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    sb.from('chat_groups').select('*').then(({data}) => {
+      if(data) { setGroups(data); setSelected(data.map(g=>g.id)); }
+    });
+  }, []);
+
+  const toggle = (id) => {
+    setSelected(s => s.includes(id) ? s.filter(x=>x!==id) : [...s, id]);
+  };
+
+  const submit = async () => {
+    setErr("");
+    if(!name.trim() || pin.trim().length < 3){
+      setErr("Poné tu nombre y una clave de al menos 3 caracteres.");
+      return;
+    }
+    if(selected.length === 0){
+      setErr("Elegí al menos un grupo.");
+      return;
+    }
+    setLoading(true);
+    const { data, error } = await sb.rpc('chat_login', { p_name: name.trim(), p_pin: pin.trim() });
+    setLoading(false);
+    if(error){
+      setErr(error.message.includes("PIN") ? "Clave incorrecta para ese nombre." : "Error: " + error.message);
+      return;
+    }
+    const user = data[0];
+    // join selected groups (ignore conflicts)
+    for(const gid of selected){
+      await sb.from('chat_group_members').insert({group_id: gid, user_id: user.id});
+    }
+    localStorage.setItem(LS_KEY, JSON.stringify(user));
+    onLogin(user);
+  };
+
+  return (
+    <div className="login-wrap">
+      <div className="blob blob1"></div>
+      <div className="blob blob2"></div>
+      <div className="blob blob3"></div>
+      <div className="login-card">
+        <h1>¡Hola! 👋</h1>
+        <p>Entrá con tu nombre y tu clave secreta</p>
+        <div className="field">
+          <label>Tu nombre</label>
+          <input value={name} onChange={e=>setName(e.target.value)} placeholder="Ej: Lu" maxLength={20} />
+        </div>
+        <div className="field">
+          <label>Tu clave</label>
+          <input value={pin} onChange={e=>setPin(e.target.value)} placeholder="••••" type="password" inputMode="numeric" maxLength={12} />
+        </div>
+        <div className="field">
+          <label>¿A qué grupo entrás?</label>
+          <div className="group-check">
+            {groups.map(g => (
+              <div key={g.id} className={"chip" + (selected.includes(g.id) ? " active" : "")} onClick={()=>toggle(g.id)}>
+                {g.name}
+              </div>
+            ))}
+          </div>
+        </div>
+        {err && <div className="error-msg">{err}</div>}
+        <button className="btn" onClick={submit} disabled={loading}>{loading ? "Entrando..." : "Entrar"}</button>
+        <div className="hint">Si es la primera vez, tu clave queda guardada. La podés cambiar después.</div>
+      </div>
+    </div>
+  );
+}
+
+function SettingsModal({ user, onClose, onPinChanged }){
+  const [oldPin, setOldPin] = useState("");
+  const [newPin, setNewPin] = useState("");
+  const [msg, setMsg] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const submit = async () => {
+    setMsg("");
+    if(newPin.trim().length < 3){ setMsg("La clave nueva debe tener al menos 3 caracteres."); return; }
+    setLoading(true);
+    const { error } = await sb.rpc('chat_change_pin', { p_user_id: user.id, p_old_pin: oldPin.trim(), p_new_pin: newPin.trim() });
+    setLoading(false);
+    if(error){ setMsg("Clave actual incorrecta."); return; }
+    setMsg("¡Clave actualizada!");
+    setTimeout(()=>{ onPinChanged(); }, 900);
+  };
+
+  return (
+    <div className="overlay" onClick={onClose}>
+      <div className="modal" onClick={e=>e.stopPropagation()}>
+        <div className="close-row"><button className="icon-btn" onClick={onClose}>✕</button></div>
+        <h3>Cambiar clave</h3>
+        <div className="field">
+          <label>Clave actual</label>
+          <input type="password" value={oldPin} onChange={e=>setOldPin(e.target.value)} />
+        </div>
+        <div className="field">
+          <label>Clave nueva</label>
+          <input type="password" value={newPin} onChange={e=>setNewPin(e.target.value)} />
+        </div>
+        {msg && <div className="error-msg" style={{color: msg.includes('actualizada') ? '#1D9A6C' : '#D64545'}}>{msg}</div>}
+        <button className="btn" onClick={submit} disabled={loading}>{loading ? "Guardando..." : "Guardar"}</button>
+      </div>
+    </div>
+  );
+}
+
+function ChatApp({ user, onLogout }){
+  const [groups, setGroups] = useState([]);
+  const [activeGroup, setActiveGroup] = useState(null);
+  const [messages, setMessages] = useState([]);
+  const [text, setText] = useState("");
+  const [showSettings, setShowSettings] = useState(false);
+  const [recording, setRecording] = useState(false);
+  const scrollRef = useRef(null);
+  const fileRef = useRef(null);
+  const mediaRecorderRef = useRef(null);
+  const chunksRef = useRef([]);
+
+  useEffect(() => {
+    sb.from('chat_groups').select('*').then(({data}) => {
+      if(data){ setGroups(data); setActiveGroup(g => g || data[0]?.id); }
+    });
+  }, []);
+
+  useEffect(() => {
+    if(!activeGroup) return;
+    let sub;
+    (async () => {
+      const { data } = await sb.from('chat_messages').select('*').eq('group_id', activeGroup).order('created_at', {ascending:true}).limit(200);
+      setMessages(data || []);
+      sub = sb.channel('room-'+activeGroup)
+        .on('postgres_changes', {event:'INSERT', schema:'public', table:'chat_messages', filter:`group_id=eq.${activeGroup}`}, payload => {
+          setMessages(m => [...m, payload.new]);
+        })
+        .subscribe();
+    })();
+    return () => { if(sub) sb.removeChannel(sub); };
+  }, [activeGroup]);
+
+  useEffect(() => {
+    if(scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+  }, [messages]);
+
+  const sendText = async () => {
+    if(!text.trim() || !activeGroup) return;
+    const content = text.trim();
+    setText("");
+    await sb.from('chat_messages').insert({
+      group_id: activeGroup, user_id: user.id, sender_name: user.name, sender_color: user.color,
+      type: 'text', content
+    });
+  };
+
+  const sendPhoto = async (file) => {
+    if(!file || !activeGroup) return;
+    const ext = file.name.split('.').pop() || 'jpg';
+    const path = `photos/${crypto.randomUUID()}.${ext}`;
+    const { error } = await sb.storage.from('chat-media').upload(path, file);
+    if(error){ alert("No se pudo subir la foto"); return; }
+    const { data } = sb.storage.from('chat-media').getPublicUrl(path);
+    await sb.from('chat_messages').insert({
+      group_id: activeGroup, user_id: user.id, sender_name: user.name, sender_color: user.color,
+      type: 'photo', media_path: data.publicUrl
+    });
+  };
+
+  const startRecording = async () => {
+    try{
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mr = new MediaRecorder(stream);
+      chunksRef.current = [];
+      mr.ondataavailable = e => chunksRef.current.push(e.data);
+      mr.onstop = async () => {
+        const blob = new Blob(chunksRef.current, {type:'audio/webm'});
+        const path = `audio/${crypto.randomUUID()}.webm`;
+        const { error } = await sb.storage.from('chat-media').upload(path, blob, {contentType:'audio/webm'});
+        if(!error){
+          const { data } = sb.storage.from('chat-media').getPublicUrl(path);
+          await sb.from('chat_messages').insert({
+            group_id: activeGroup, user_id: user.id, sender_name: user.name, sender_color: user.color,
+            type: 'audio', media_path: data.publicUrl
+          });
+        }
+        stream.getTracks().forEach(t=>t.stop());
+      };
+      mr.start();
+      mediaRecorderRef.current = mr;
+      setRecording(true);
+    }catch(e){
+      alert("No se pudo acceder al micrófono");
+    }
+  };
+
+  const stopRecording = () => {
+    if(mediaRecorderRef.current){ mediaRecorderRef.current.stop(); }
+    setRecording(false);
+  };
+
+  const logout = () => {
+    localStorage.removeItem(LS_KEY);
+    onLogout();
+  };
+
+  return (
+    <div className="screen">
+      <div className="topbar">
+        <div className="avatar" style={{background:user.color}}>{initials(user.name)}</div>
+        <h2>Charla</h2>
+        <button className="icon-btn" onClick={()=>setShowSettings(true)}>⚙️</button>
+        <button className="icon-btn" onClick={logout}>🚪</button>
+      </div>
+      <div className="tabs">
+        {groups.map(g => (
+          <div key={g.id} className={"tab"+(activeGroup===g.id?" active":"")} onClick={()=>setActiveGroup(g.id)}>{g.name}</div>
+        ))}
+      </div>
+      <div className="chat-area" ref={scrollRef}>
+        {messages.length === 0 && <div className="empty-state">Todavía no hay mensajes.<br/>¡Escribí el primero! 🎉</div>}
+        {messages.map(m => {
+          const mine = m.user_id === user.id;
+          return (
+            <div key={m.id} className={"msg-row"+(mine?" me":"")}>
+              <div className="avatar-sm" style={{background:m.sender_color}}>{initials(m.sender_name)}</div>
+              <div className="bubble">
+                {!mine && <div className="sender-name">{m.sender_name}</div>}
+                {m.type === 'text' && <div>{m.content}</div>}
+                {m.type === 'photo' && <img src={m.media_path} />}
+                {m.type === 'audio' && <audio controls src={m.media_path}></audio>}
+                <div className="time">{timeFmt(m.created_at)}</div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <div className="input-bar">
+        <input type="file" accept="image/*" ref={fileRef} style={{display:'none'}} onChange={e=>{sendPhoto(e.target.files[0]); e.target.value='';}} />
+        <button className="round-btn" onClick={()=>fileRef.current.click()}>📷</button>
+        <input type="text" value={text} placeholder="Escribí algo..." onChange={e=>setText(e.target.value)}
+          onKeyDown={e=>{ if(e.key==='Enter') sendText(); }} />
+        {text.trim() ? (
+          <button className="round-btn send" onClick={sendText}>➤</button>
+        ) : (
+          <button className={"round-btn"+(recording?" rec":"")}
+            onMouseDown={startRecording} onMouseUp={stopRecording}
+            onTouchStart={(e)=>{e.preventDefault(); startRecording();}} onTouchEnd={(e)=>{e.preventDefault(); stopRecording();}}>
+            🎤
+          </button>
+        )}
+      </div>
+      {showSettings && <SettingsModal user={user} onClose={()=>setShowSettings(false)} onPinChanged={()=>setShowSettings(false)} />}
+    </div>
+  );
+}
+
+function App(){
+  const [user, setUser] = useState(() => {
+    try{ return JSON.parse(localStorage.getItem(LS_KEY)); }catch(e){ return null; }
+  });
+
+  if(!user) return <Login onLogin={setUser} />;
+  return <ChatApp user={user} onLogout={()=>setUser(null)} />;
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>
