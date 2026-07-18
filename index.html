@@ -459,6 +459,49 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
   .modal h3{margin:0 0 16px;}
   .close-row{display:flex; justify-content:flex-end;}
   ::-webkit-scrollbar{width:0;}
+
+  /* CONVERSATION LIST */
+  .conv-list{flex:1; overflow-y:auto; padding:8px 12px;}
+  .conv-row{
+    display:flex; align-items:center; gap:12px; padding:14px 10px; border-bottom:2px solid #F1E9F7;
+    cursor:pointer;
+  }
+  .conv-row:active{background:#FBF2F8;}
+  .conv-name{font-weight:800; font-size:16px; color:var(--ink);}
+  .fab-row{display:flex; gap:10px; padding:12px; background:var(--card); border-top:3px solid var(--ink);}
+  .fab{
+    flex:1; padding:13px; border-radius:16px; border:2.5px solid var(--ink); background:var(--yellow);
+    font-family:'Baloo 2',sans-serif; font-weight:700; font-size:14px; cursor:pointer;
+  }
+  .fab-dm{background:var(--mint);}
+  .fab:active{transform:scale(.97);}
+
+  /* CONTACT PICKER */
+  .contact-list{max-height:320px; overflow-y:auto;}
+  .contact-row{display:flex; align-items:center; gap:12px; padding:12px 4px; border-bottom:2px solid #F1E9F7; cursor:pointer; font-weight:700;}
+  .contact-row:active{background:#FBF2F8;}
+
+  /* EMOJI / STICKER PICKER */
+  .picker-panel{
+    display:flex; flex-wrap:wrap; gap:4px; padding:10px; max-height:180px; overflow-y:auto;
+    background:var(--card); border-top:2px solid #F1E9F7;
+  }
+  .picker-item{font-size:26px; padding:6px; cursor:pointer; border-radius:10px;}
+  .picker-item:active{background:#F1E9F7;}
+  .sticker-item{font-size:36px;}
+  .sticker{font-size:56px; line-height:1;}
+
+  /* VIDEO IN BUBBLE */
+  .bubble video{max-width:220px; border-radius:12px; display:block; margin-top:2px;}
+
+  /* MUTE + GROUP CODE DISPLAY */
+  .conv-code{font-size:11px; color:var(--ink-soft); font-weight:700; margin-top:2px;}
+  .mute-btn{background:none; border:none; font-size:20px; padding:6px; cursor:pointer; flex-shrink:0;}
+  .code-display{
+    font-family:'Baloo 2',sans-serif; font-size:28px; letter-spacing:.08em; text-align:center;
+    background:#FBF8FD; border:2.5px dashed var(--pink); border-radius:14px; padding:14px; margin:14px 0;
+    color:var(--pink-dark);
+  }
 </style>
 </head>
 <body>
@@ -473,6 +516,8 @@ const SUPABASE_URL = "https://ejobycpstnbzkjnlebrd.supabase.co";
 const SUPABASE_KEY = "sb_publishable_D_Q2E8Eq4cfGDpwX1N7Jbg_XKR78XZH";
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 const LS_KEY = "charla_session_v1";
+const EMOJIS = ["😀", "😂", "🥰", "😍", "😘", "😜", "😎", "🤩", "🥳", "😇", "🙃", "😉", "😊", "😢", "😭", "😡", "😱", "🤔", "🙄", "😴", "👍", "👎", "👏", "🙌", "🙏", "💪", "✌️", "🤞", "👋", "🤝", "❤️", "🧡", "💛", "💚", "💙", "💜", "🖤", "💕", "💖", "💯", "🔥", "✨", "🎉", "🎂", "🎈", "🌈", "⭐", "☀️", "🌙", "🍕", "🍔", "🍟", "🍦", "🍩", "☕", "🐶", "🐱", "🦄", "🌸"];
+const STICKERS = ["😂", "😍", "🥳", "🔥", "❤️", "👍", "🎉", "😎", "🥺", "😭", "🙌", "💯", "🌈", "🦄", "🎂", "✨"];
 function initials(name) {
   return (name || "?").trim().slice(0, 2).toUpperCase();
 }
@@ -483,36 +528,35 @@ function timeFmt(iso) {
     minute: '2-digit'
   });
 }
+function playPing() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(880, ctx.currentTime);
+    o.frequency.exponentialRampToValueAtTime(1320, ctx.currentTime + 0.1);
+    g.gain.setValueAtTime(0.15, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25);
+    o.connect(g);
+    g.connect(ctx.destination);
+    o.start();
+    o.stop(ctx.currentTime + 0.25);
+  } catch (e) {}
+}
 function Login({
   onLogin
 }) {
   const [name, setName] = useState("");
   const [pin, setPin] = useState("");
-  const [groups, setGroups] = useState([]);
-  const [selected, setSelected] = useState([]);
+  const [codeAmigas, setCodeAmigas] = useState("");
+  const [codeFamilia, setCodeFamilia] = useState("");
   const [err, setErr] = useState("");
   const [loading, setLoading] = useState(false);
-  useEffect(() => {
-    sb.from('chat_groups').select('*').then(({
-      data
-    }) => {
-      if (data) {
-        setGroups(data);
-        setSelected(data.map(g => g.id));
-      }
-    });
-  }, []);
-  const toggle = id => {
-    setSelected(s => s.includes(id) ? s.filter(x => x !== id) : [...s, id]);
-  };
   const submit = async () => {
     setErr("");
     if (!name.trim() || pin.trim().length < 3) {
       setErr("Poné tu nombre y una clave de al menos 3 caracteres.");
-      return;
-    }
-    if (selected.length === 0) {
-      setErr("Elegí al menos un grupo.");
       return;
     }
     setLoading(true);
@@ -523,19 +567,27 @@ function Login({
       p_name: name.trim(),
       p_pin: pin.trim()
     });
-    setLoading(false);
     if (error) {
+      setLoading(false);
       setErr(error.message.includes("PIN") ? "Clave incorrecta para ese nombre." : "Error: " + error.message);
       return;
     }
     const user = data[0];
-    // join selected groups (ignore conflicts)
-    for (const gid of selected) {
-      await sb.from('chat_group_members').insert({
-        group_id: gid,
-        user_id: user.id
+    if (codeAmigas.trim()) {
+      await sb.rpc('join_group', {
+        p_user_id: user.id,
+        p_group_name: 'Amigas',
+        p_code: codeAmigas.trim()
       });
     }
+    if (codeFamilia.trim()) {
+      await sb.rpc('join_group', {
+        p_user_id: user.id,
+        p_group_name: 'Familia',
+        p_code: codeFamilia.trim()
+      });
+    }
+    setLoading(false);
     localStorage.setItem(LS_KEY, JSON.stringify(user));
     onLogin(user);
   };
@@ -567,13 +619,17 @@ function Login({
     maxLength: 12
   })), /*#__PURE__*/React.createElement("div", {
     className: "field"
-  }, /*#__PURE__*/React.createElement("label", null, "¿A qué grupo entrás?"), /*#__PURE__*/React.createElement("div", {
-    className: "group-check"
-  }, groups.map(g => /*#__PURE__*/React.createElement("div", {
-    key: g.id,
-    className: "chip" + (selected.includes(g.id) ? " active" : ""),
-    onClick: () => toggle(g.id)
-  }, g.name)))), err && /*#__PURE__*/React.createElement("div", {
+  }, /*#__PURE__*/React.createElement("label", null, "Código de grupo Amigas (opcional)"), /*#__PURE__*/React.createElement("input", {
+    value: codeAmigas,
+    onChange: e => setCodeAmigas(e.target.value),
+    placeholder: "Solo si te lo pasaron"
+  })), /*#__PURE__*/React.createElement("div", {
+    className: "field"
+  }, /*#__PURE__*/React.createElement("label", null, "Código de grupo Familia (opcional)"), /*#__PURE__*/React.createElement("input", {
+    value: codeFamilia,
+    onChange: e => setCodeFamilia(e.target.value),
+    placeholder: "Solo si te lo pasaron"
+  })), err && /*#__PURE__*/React.createElement("div", {
     className: "error-msg"
   }, err), /*#__PURE__*/React.createElement("button", {
     className: "btn",
@@ -581,12 +637,11 @@ function Login({
     disabled: loading
   }, loading ? "Entrando..." : "Entrar"), /*#__PURE__*/React.createElement("div", {
     className: "hint"
-  }, "Si es la primera vez, tu clave queda guardada. La podés cambiar después.")));
+  }, "Sin el código correcto no vas a poder ver ese grupo. Podés unirte a más grupos después.")));
 }
 function SettingsModal({
   user,
-  onClose,
-  onPinChanged
+  onClose
 }) {
   const [oldPin, setOldPin] = useState("");
   const [newPin, setNewPin] = useState("");
@@ -613,7 +668,7 @@ function SettingsModal({
     }
     setMsg("¡Clave actualizada!");
     setTimeout(() => {
-      onPinChanged();
+      onClose();
     }, 900);
   };
   return /*#__PURE__*/React.createElement("div", {
@@ -650,91 +705,381 @@ function SettingsModal({
     disabled: loading
   }, loading ? "Guardando..." : "Guardar")));
 }
-function ChatApp({
+function JoinGroupModal({
   user,
+  onClose,
+  onJoined
+}) {
+  const [groupName, setGroupName] = useState("");
+  const [code, setCode] = useState("");
+  const [err, setErr] = useState("");
+  const [loading, setLoading] = useState(false);
+  const submit = async () => {
+    setErr("");
+    setLoading(true);
+    const {
+      error
+    } = await sb.rpc('join_group', {
+      p_user_id: user.id,
+      p_group_name: groupName,
+      p_code: code.trim()
+    });
+    setLoading(false);
+    if (error) {
+      setErr("Código incorrecto.");
+      return;
+    }
+    onJoined();
+  };
+  return /*#__PURE__*/React.createElement("div", {
+    className: "overlay",
+    onClick: onClose
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "modal",
+    onClick: e => e.stopPropagation()
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "close-row"
+  }, /*#__PURE__*/React.createElement("button", {
+    className: "icon-btn",
+    onClick: onClose
+  }, "✕")), /*#__PURE__*/React.createElement("h3", null, "Unirme a un grupo"), /*#__PURE__*/React.createElement("div", {
+    className: "field"
+  }, /*#__PURE__*/React.createElement("label", null, "Nombre del grupo"), /*#__PURE__*/React.createElement("input", {
+    value: groupName,
+    onChange: e => setGroupName(e.target.value),
+    placeholder: "Ej: Familia"
+  })), /*#__PURE__*/React.createElement("div", {
+    className: "field"
+  }, /*#__PURE__*/React.createElement("label", null, "Código"), /*#__PURE__*/React.createElement("input", {
+    value: code,
+    onChange: e => setCode(e.target.value),
+    placeholder: "El código que te pasaron"
+  })), err && /*#__PURE__*/React.createElement("div", {
+    className: "error-msg"
+  }, err), /*#__PURE__*/React.createElement("button", {
+    className: "btn",
+    onClick: submit,
+    disabled: loading || !code.trim() || !groupName.trim()
+  }, loading ? "Uniendo..." : "Unirme")));
+}
+function NewDMModal({
+  user,
+  onClose,
+  onStarted
+}) {
+  const [contacts, setContacts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    sb.from('chat_users_public').select('*').neq('id', user.id).order('name').then(({
+      data
+    }) => {
+      setContacts(data || []);
+      setLoading(false);
+    });
+  }, []);
+  const pick = async other => {
+    const {
+      data,
+      error
+    } = await sb.rpc('start_dm', {
+      p_user_id: user.id,
+      p_other_user_id: other.id
+    });
+    if (!error) onStarted(data, other.name);
+  };
+  return /*#__PURE__*/React.createElement("div", {
+    className: "overlay",
+    onClick: onClose
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "modal",
+    onClick: e => e.stopPropagation()
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "close-row"
+  }, /*#__PURE__*/React.createElement("button", {
+    className: "icon-btn",
+    onClick: onClose
+  }, "✕")), /*#__PURE__*/React.createElement("h3", null, "Mensaje privado"), loading && /*#__PURE__*/React.createElement("div", {
+    className: "hint"
+  }, "Cargando..."), /*#__PURE__*/React.createElement("div", {
+    className: "contact-list"
+  }, contacts.map(c => /*#__PURE__*/React.createElement("div", {
+    key: c.id,
+    className: "contact-row",
+    onClick: () => pick(c)
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "avatar-sm",
+    style: {
+      background: c.color
+    }
+  }, initials(c.name)), /*#__PURE__*/React.createElement("div", null, c.name))), !loading && contacts.length === 0 && /*#__PURE__*/React.createElement("div", {
+    className: "hint"
+  }, "Todavía no hay otras personas registradas."))));
+}
+function CreateGroupModal({
+  user,
+  onClose,
+  onCreated
+}) {
+  const [name, setName] = useState("");
+  const [err, setErr] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState(null);
+  const submit = async () => {
+    setErr("");
+    if (!name.trim()) return;
+    setLoading(true);
+    const {
+      data,
+      error
+    } = await sb.rpc('create_group', {
+      p_user_id: user.id,
+      p_group_name: name.trim()
+    });
+    setLoading(false);
+    if (error) {
+      setErr("No se pudo crear el grupo.");
+      return;
+    }
+    setResult(data[0]);
+  };
+  if (result) {
+    return /*#__PURE__*/React.createElement("div", {
+      className: "overlay",
+      onClick: onClose
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "modal",
+      onClick: e => e.stopPropagation()
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "close-row"
+    }, /*#__PURE__*/React.createElement("button", {
+      className: "icon-btn",
+      onClick: () => {
+        onClose();
+        onCreated();
+      }
+    }, "✕")), /*#__PURE__*/React.createElement("h3", null, "¡Grupo creado! 🎉"), /*#__PURE__*/React.createElement("p", {
+      style: {
+        fontWeight: 700
+      }
+    }, "Compartí este código con quien quieras que se una a \"", name.trim(), "\":"), /*#__PURE__*/React.createElement("div", {
+      className: "code-display"
+    }, result.join_code), /*#__PURE__*/React.createElement("button", {
+      className: "btn",
+      onClick: () => {
+        onClose();
+        onCreated();
+      }
+    }, "Listo")));
+  }
+  return /*#__PURE__*/React.createElement("div", {
+    className: "overlay",
+    onClick: onClose
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "modal",
+    onClick: e => e.stopPropagation()
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "close-row"
+  }, /*#__PURE__*/React.createElement("button", {
+    className: "icon-btn",
+    onClick: onClose
+  }, "✕")), /*#__PURE__*/React.createElement("h3", null, "Crear grupo nuevo"), /*#__PURE__*/React.createElement("div", {
+    className: "field"
+  }, /*#__PURE__*/React.createElement("label", null, "Nombre del grupo"), /*#__PURE__*/React.createElement("input", {
+    value: name,
+    onChange: e => setName(e.target.value),
+    placeholder: "Ej: Primos, Vecinos..."
+  })), err && /*#__PURE__*/React.createElement("div", {
+    className: "error-msg"
+  }, err), /*#__PURE__*/React.createElement("button", {
+    className: "btn",
+    onClick: submit,
+    disabled: loading || !name.trim()
+  }, loading ? "Creando..." : "Crear grupo")));
+}
+function ConversationList({
+  user,
+  onOpen,
+  onSettings,
   onLogout
 }) {
-  const [groups, setGroups] = useState([]);
-  const [activeGroup, setActiveGroup] = useState(null);
+  const [conversations, setConversations] = useState([]);
+  const [showJoin, setShowJoin] = useState(false);
+  const [showDM, setShowDM] = useState(false);
+  const [showCreate, setShowCreate] = useState(false);
+  const load = useCallback(() => {
+    sb.rpc('get_my_conversations', {
+      p_user_id: user.id
+    }).then(({
+      data
+    }) => {
+      setConversations(data || []);
+    });
+  }, [user.id]);
+  useEffect(() => {
+    load();
+  }, [load]);
+  const toggleMute = async (e, c) => {
+    e.stopPropagation();
+    await sb.rpc('set_mute', {
+      p_user_id: user.id,
+      p_group_id: c.group_id,
+      p_muted: !c.muted
+    });
+    load();
+  };
+  return /*#__PURE__*/React.createElement("div", {
+    className: "screen"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "topbar"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "avatar",
+    style: {
+      background: user.color
+    }
+  }, initials(user.name)), /*#__PURE__*/React.createElement("h2", null, "Charla"), /*#__PURE__*/React.createElement("button", {
+    className: "icon-btn",
+    onClick: onSettings
+  }, "⚙️"), /*#__PURE__*/React.createElement("button", {
+    className: "icon-btn",
+    onClick: onLogout
+  }, "🚪")), /*#__PURE__*/React.createElement("div", {
+    className: "conv-list"
+  }, conversations.length === 0 && /*#__PURE__*/React.createElement("div", {
+    className: "empty-state"
+  }, "Todavía no estás en ningún chat.", /*#__PURE__*/React.createElement("br", null), "Unite a un grupo o mandá un mensaje privado."), conversations.map(c => /*#__PURE__*/React.createElement("div", {
+    key: c.group_id,
+    className: "conv-row",
+    onClick: () => onOpen(c)
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "avatar",
+    style: {
+      background: c.is_direct ? '#3DDC97' : '#FF4D8D'
+    }
+  }, c.is_direct ? '💬' : initials(c.display_name)), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "conv-name"
+  }, c.display_name, c.is_direct ? '' : ' (grupo)'), !c.is_direct && /*#__PURE__*/React.createElement("div", {
+    className: "conv-code"
+  }, "código: ", c.join_code)), /*#__PURE__*/React.createElement("button", {
+    className: "mute-btn",
+    onClick: e => toggleMute(e, c)
+  }, c.muted ? '🔕' : '🔔')))), /*#__PURE__*/React.createElement("div", {
+    className: "fab-row"
+  }, /*#__PURE__*/React.createElement("button", {
+    className: "fab",
+    onClick: () => setShowCreate(true)
+  }, "🆕 Crear grupo"), /*#__PURE__*/React.createElement("button", {
+    className: "fab",
+    onClick: () => setShowJoin(true)
+  }, "➕ Unirme"), /*#__PURE__*/React.createElement("button", {
+    className: "fab fab-dm",
+    onClick: () => setShowDM(true)
+  }, "💬 Privado")), showJoin && /*#__PURE__*/React.createElement(JoinGroupModal, {
+    user: user,
+    onClose: () => setShowJoin(false),
+    onJoined: () => {
+      setShowJoin(false);
+      load();
+    }
+  }), showDM && /*#__PURE__*/React.createElement(NewDMModal, {
+    user: user,
+    onClose: () => setShowDM(false),
+    onStarted: (groupId, otherName) => {
+      setShowDM(false);
+      load();
+      onOpen({
+        group_id: groupId,
+        display_name: otherName,
+        is_direct: true
+      });
+    }
+  }), showCreate && /*#__PURE__*/React.createElement(CreateGroupModal, {
+    user: user,
+    onClose: () => setShowCreate(false),
+    onCreated: load
+  }));
+}
+function ChatThread({
+  user,
+  conversation,
+  onBack
+}) {
   const [messages, setMessages] = useState([]);
   const [text, setText] = useState("");
-  const [showSettings, setShowSettings] = useState(false);
   const [recording, setRecording] = useState(false);
+  const [showEmoji, setShowEmoji] = useState(false);
+  const [showStickers, setShowStickers] = useState(false);
   const scrollRef = useRef(null);
   const fileRef = useRef(null);
   const mediaRecorderRef = useRef(null);
   const chunksRef = useRef([]);
   useEffect(() => {
-    sb.from('chat_groups').select('*').then(({
-      data
-    }) => {
-      if (data) {
-        setGroups(data);
-        setActiveGroup(g => g || data[0]?.id);
-      }
-    });
-  }, []);
-  useEffect(() => {
-    if (!activeGroup) return;
     let sub;
     (async () => {
       const {
         data
-      } = await sb.from('chat_messages').select('*').eq('group_id', activeGroup).order('created_at', {
+      } = await sb.from('chat_messages').select('*').eq('group_id', conversation.group_id).order('created_at', {
         ascending: true
       }).limit(200);
       setMessages(data || []);
-      sub = sb.channel('room-' + activeGroup).on('postgres_changes', {
+      sub = sb.channel('room-' + conversation.group_id).on('postgres_changes', {
         event: 'INSERT',
         schema: 'public',
         table: 'chat_messages',
-        filter: `group_id=eq.${activeGroup}`
+        filter: `group_id=eq.${conversation.group_id}`
       }, payload => {
         setMessages(m => [...m, payload.new]);
+        if (payload.new.user_id !== user.id && !conversation.muted) playPing();
       }).subscribe();
     })();
     return () => {
       if (sub) sb.removeChannel(sub);
     };
-  }, [activeGroup]);
+  }, [conversation.group_id]);
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [messages]);
-  const sendText = async () => {
-    if (!text.trim() || !activeGroup) return;
-    const content = text.trim();
-    setText("");
+  const sendMessage = async (type, content, mediaPath) => {
     await sb.from('chat_messages').insert({
-      group_id: activeGroup,
+      group_id: conversation.group_id,
       user_id: user.id,
       sender_name: user.name,
       sender_color: user.color,
-      type: 'text',
-      content
+      type,
+      content: content || null,
+      media_path: mediaPath || null
     });
   };
-  const sendPhoto = async file => {
-    if (!file || !activeGroup) return;
-    const ext = file.name.split('.').pop() || 'jpg';
-    const path = `photos/${crypto.randomUUID()}.${ext}`;
+  const sendText = async () => {
+    if (!text.trim()) return;
+    const content = text.trim();
+    setText("");
+    setShowEmoji(false);
+    await sendMessage('text', content, null);
+  };
+  const sendSticker = async emoji => {
+    setShowStickers(false);
+    await sendMessage('sticker', emoji, null);
+  };
+  const sendFile = async file => {
+    if (!file) return;
+    const isVideo = file.type.startsWith('video');
+    const ext = file.name.split('.').pop() || (isVideo ? 'mp4' : 'jpg');
+    const path = `${isVideo ? 'videos' : 'photos'}/${crypto.randomUUID()}.${ext}`;
     const {
       error
     } = await sb.storage.from('chat-media').upload(path, file);
     if (error) {
-      alert("No se pudo subir la foto");
+      alert("No se pudo subir el archivo");
       return;
     }
     const {
       data
     } = sb.storage.from('chat-media').getPublicUrl(path);
-    await sb.from('chat_messages').insert({
-      group_id: activeGroup,
-      user_id: user.id,
-      sender_name: user.name,
-      sender_color: user.color,
-      type: 'photo',
-      media_path: data.publicUrl
-    });
+    await sendMessage(isVideo ? 'video' : 'photo', null, data.publicUrl);
   };
   const startRecording = async () => {
     try {
@@ -758,14 +1103,7 @@ function ChatApp({
           const {
             data
           } = sb.storage.from('chat-media').getPublicUrl(path);
-          await sb.from('chat_messages').insert({
-            group_id: activeGroup,
-            user_id: user.id,
-            sender_name: user.name,
-            sender_color: user.color,
-            type: 'audio',
-            media_path: data.publicUrl
-          });
+          await sendMessage('audio', null, data.publicUrl);
         }
         stream.getTracks().forEach(t => t.stop());
       };
@@ -782,32 +1120,14 @@ function ChatApp({
     }
     setRecording(false);
   };
-  const logout = () => {
-    localStorage.removeItem(LS_KEY);
-    onLogout();
-  };
   return /*#__PURE__*/React.createElement("div", {
     className: "screen"
   }, /*#__PURE__*/React.createElement("div", {
     className: "topbar"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "avatar",
-    style: {
-      background: user.color
-    }
-  }, initials(user.name)), /*#__PURE__*/React.createElement("h2", null, "Charla"), /*#__PURE__*/React.createElement("button", {
+  }, /*#__PURE__*/React.createElement("button", {
     className: "icon-btn",
-    onClick: () => setShowSettings(true)
-  }, "⚙️"), /*#__PURE__*/React.createElement("button", {
-    className: "icon-btn",
-    onClick: logout
-  }, "🚪")), /*#__PURE__*/React.createElement("div", {
-    className: "tabs"
-  }, groups.map(g => /*#__PURE__*/React.createElement("div", {
-    key: g.id,
-    className: "tab" + (activeGroup === g.id ? " active" : ""),
-    onClick: () => setActiveGroup(g.id)
-  }, g.name))), /*#__PURE__*/React.createElement("div", {
+    onClick: onBack
+  }, "←"), /*#__PURE__*/React.createElement("h2", null, conversation.display_name)), /*#__PURE__*/React.createElement("div", {
     className: "chat-area",
     ref: scrollRef
   }, messages.length === 0 && /*#__PURE__*/React.createElement("div", {
@@ -826,31 +1146,60 @@ function ChatApp({
       className: "bubble"
     }, !mine && /*#__PURE__*/React.createElement("div", {
       className: "sender-name"
-    }, m.sender_name), m.type === 'text' && /*#__PURE__*/React.createElement("div", null, m.content), m.type === 'photo' && /*#__PURE__*/React.createElement("img", {
+    }, m.sender_name), m.type === 'text' && /*#__PURE__*/React.createElement("div", null, m.content), m.type === 'sticker' && /*#__PURE__*/React.createElement("div", {
+      className: "sticker"
+    }, m.content), m.type === 'photo' && /*#__PURE__*/React.createElement("img", {
       src: m.media_path
+    }), m.type === 'video' && /*#__PURE__*/React.createElement("video", {
+      src: m.media_path,
+      controls: true
     }), m.type === 'audio' && /*#__PURE__*/React.createElement("audio", {
       controls: true,
       src: m.media_path
     }), /*#__PURE__*/React.createElement("div", {
       className: "time"
     }, timeFmt(m.created_at))));
-  })), /*#__PURE__*/React.createElement("div", {
+  })), showEmoji && /*#__PURE__*/React.createElement("div", {
+    className: "picker-panel"
+  }, EMOJIS.map((e, i) => /*#__PURE__*/React.createElement("span", {
+    key: i,
+    className: "picker-item",
+    onClick: () => setText(t => t + e)
+  }, e))), showStickers && /*#__PURE__*/React.createElement("div", {
+    className: "picker-panel"
+  }, STICKERS.map((s, i) => /*#__PURE__*/React.createElement("span", {
+    key: i,
+    className: "picker-item sticker-item",
+    onClick: () => sendSticker(s)
+  }, s))), /*#__PURE__*/React.createElement("div", {
     className: "input-bar"
   }, /*#__PURE__*/React.createElement("input", {
     type: "file",
-    accept: "image/*",
+    accept: "image/*,video/*",
     ref: fileRef,
     style: {
       display: 'none'
     },
     onChange: e => {
-      sendPhoto(e.target.files[0]);
+      sendFile(e.target.files[0]);
       e.target.value = '';
     }
   }), /*#__PURE__*/React.createElement("button", {
     className: "round-btn",
     onClick: () => fileRef.current.click()
-  }, "📷"), /*#__PURE__*/React.createElement("input", {
+  }, "📷"), /*#__PURE__*/React.createElement("button", {
+    className: "round-btn",
+    onClick: () => {
+      setShowEmoji(s => !s);
+      setShowStickers(false);
+    }
+  }, "😊"), /*#__PURE__*/React.createElement("button", {
+    className: "round-btn",
+    onClick: () => {
+      setShowStickers(s => !s);
+      setShowEmoji(false);
+    }
+  }, "🎟️"), /*#__PURE__*/React.createElement("input", {
     type: "text",
     value: text,
     placeholder: "Escribí algo...",
@@ -873,11 +1222,7 @@ function ChatApp({
       e.preventDefault();
       stopRecording();
     }
-  }, "🎤")), showSettings && /*#__PURE__*/React.createElement(SettingsModal, {
-    user: user,
-    onClose: () => setShowSettings(false),
-    onPinChanged: () => setShowSettings(false)
-  }));
+  }, "🎤")));
 }
 function App() {
   const [user, setUser] = useState(() => {
@@ -887,13 +1232,30 @@ function App() {
       return null;
     }
   });
+  const [conversation, setConversation] = useState(null);
+  const [showSettings, setShowSettings] = useState(false);
   if (!user) return /*#__PURE__*/React.createElement(Login, {
     onLogin: setUser
   });
-  return /*#__PURE__*/React.createElement(ChatApp, {
+  if (conversation) {
+    return /*#__PURE__*/React.createElement(ChatThread, {
+      user: user,
+      conversation: conversation,
+      onBack: () => setConversation(null)
+    });
+  }
+  return /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(ConversationList, {
     user: user,
-    onLogout: () => setUser(null)
-  });
+    onOpen: setConversation,
+    onSettings: () => setShowSettings(true),
+    onLogout: () => {
+      localStorage.removeItem(LS_KEY);
+      setUser(null);
+    }
+  }), showSettings && /*#__PURE__*/React.createElement(SettingsModal, {
+    user: user,
+    onClose: () => setShowSettings(false)
+  }));
 }
 ReactDOM.createRoot(document.getElementById('root')).render(/*#__PURE__*/React.createElement(App, null));</script>
 </body>
