@@ -520,6 +520,18 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
   .toast-title{font-family:'Baloo 2',sans-serif; font-weight:700; font-size:14px; color:var(--yellow);}
   .toast-body{font-weight:600; font-size:14px; margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
   @keyframes toast-in{ from{ transform:translateX(-50%) translateY(-30px); opacity:0; } to{ transform:translateX(-50%) translateY(0); opacity:1; } }
+
+  /* SOUND PICKER + VERSION TAG */
+  .sound-list{margin-bottom:6px;}
+  .sound-row{
+    display:flex; justify-content:space-between; align-items:center; padding:12px 8px;
+    border-bottom:2px solid #F1E9F7; font-weight:700; cursor:pointer;
+  }
+  .sound-row.active{color:var(--pink-dark);}
+  .version-tag{
+    text-align:center; font-size:11px; color:var(--ink-soft); font-weight:700;
+    padding:4px 0 8px; background:var(--card);
+  }
 </style>
 </head>
 <body>
@@ -534,8 +546,43 @@ const SUPABASE_URL = "https://ejobycpstnbzkjnlebrd.supabase.co";
 const SUPABASE_KEY = "sb_publishable_D_Q2E8Eq4cfGDpwX1N7Jbg_XKR78XZH";
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 const LS_KEY = "charla_session_v1";
+const APP_VERSION = "v1.7 · sonidos y notificaciones";
 const EMOJIS = ["😀", "😂", "🥰", "😍", "😘", "😜", "😎", "🤩", "🥳", "😇", "🙃", "😉", "😊", "😢", "😭", "😡", "😱", "🤔", "🙄", "😴", "👍", "👎", "👏", "🙌", "🙏", "💪", "✌️", "🤞", "👋", "🤝", "❤️", "🧡", "💛", "💚", "💙", "💜", "🖤", "💕", "💖", "💯", "🔥", "✨", "🎉", "🎂", "🎈", "🌈", "⭐", "☀️", "🌙", "🍕", "🍔", "🍟", "🍦", "🍩", "☕", "🐶", "🐱", "🦄", "🌸"];
 const STICKERS = ["😂", "😍", "🥳", "🔥", "❤️", "👍", "🎉", "😎", "🥺", "😭", "🙌", "💯", "🌈", "🦄", "🎂", "✨"];
+const SOUND_KEY = "charla_sound_pref";
+const SOUND_PRESETS = {
+  campanita: {
+    label: "🔔 Campanita",
+    notes: [[880, 1320, 0.25, 0.15], [1100, 1100, 0.18, 0.13]],
+    gaps: [0, 140]
+  },
+  pop: {
+    label: "🔵 Pop",
+    notes: [[520, 300, 0.14, 0.18]],
+    gaps: [0]
+  },
+  silbido: {
+    label: "🎵 Silbido",
+    notes: [[600, 1600, 0.3, 0.12]],
+    gaps: [0]
+  },
+  suave: {
+    label: "🌙 Suave",
+    notes: [[440, 440, 0.35, 0.09], [660, 660, 0.35, 0.08]],
+    gaps: [0, 120]
+  },
+  alerta: {
+    label: "⚡ Alerta",
+    notes: [[700, 700, 0.1, 0.16], [700, 700, 0.1, 0.16], [700, 700, 0.1, 0.16]],
+    gaps: [0, 110, 220]
+  }
+};
+function getSoundPref() {
+  return localStorage.getItem(SOUND_KEY) || 'campanita';
+}
+function setSoundPref(key) {
+  localStorage.setItem(SOUND_KEY, key);
+}
 function initials(name) {
   return (name || "?").trim().slice(0, 2).toUpperCase();
 }
@@ -557,41 +604,32 @@ function unlockAudio() {
 }
 document.addEventListener('pointerdown', unlockAudio);
 document.addEventListener('touchstart', unlockAudio);
-function playPing() {
+function playPing(soundKey) {
   try {
     if (!sharedAudioCtx) {
       sharedAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
     }
     const ctx = sharedAudioCtx;
+    const preset = SOUND_PRESETS[soundKey || getSoundPref()] || SOUND_PRESETS.campanita;
     const fire = () => {
-      try {
-        const o = ctx.createOscillator();
-        const g = ctx.createGain();
-        o.type = 'sine';
-        o.frequency.setValueAtTime(880, ctx.currentTime);
-        o.frequency.exponentialRampToValueAtTime(1320, ctx.currentTime + 0.1);
-        g.gain.setValueAtTime(0.15, ctx.currentTime);
-        g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25);
-        o.connect(g);
-        g.connect(ctx.destination);
-        o.start();
-        o.stop(ctx.currentTime + 0.25);
-        // second little "blip" so it reads as a notification, not a glitch
+      preset.notes.forEach((note, i) => {
         setTimeout(() => {
           try {
-            const o2 = ctx.createOscillator();
-            const g2 = ctx.createGain();
-            o2.type = 'sine';
-            o2.frequency.setValueAtTime(1100, ctx.currentTime);
-            g2.gain.setValueAtTime(0.13, ctx.currentTime);
-            g2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.18);
-            o2.connect(g2);
-            g2.connect(ctx.destination);
-            o2.start();
-            o2.stop(ctx.currentTime + 0.18);
+            const [f1, f2, dur, vol] = note;
+            const o = ctx.createOscillator();
+            const g = ctx.createGain();
+            o.type = 'sine';
+            o.frequency.setValueAtTime(f1, ctx.currentTime);
+            if (f2 !== f1) o.frequency.exponentialRampToValueAtTime(f2, ctx.currentTime + dur * 0.4);
+            g.gain.setValueAtTime(vol, ctx.currentTime);
+            g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + dur);
+            o.connect(g);
+            g.connect(ctx.destination);
+            o.start();
+            o.stop(ctx.currentTime + dur);
           } catch (e) {}
-        }, 140);
-      } catch (e) {}
+        }, preset.gaps[i] || 0);
+      });
     };
     if (ctx.state === 'suspended') {
       ctx.resume().then(fire).catch(() => {});
@@ -703,6 +741,7 @@ function SettingsModal({
   const [newPin, setNewPin] = useState("");
   const [msg, setMsg] = useState("");
   const [loading, setLoading] = useState(false);
+  const [sound, setSound] = useState(getSoundPref());
   const submit = async () => {
     setMsg("");
     if (newPin.trim().length < 3) {
@@ -727,6 +766,11 @@ function SettingsModal({
       onClose();
     }, 900);
   };
+  const chooseSound = key => {
+    setSound(key);
+    setSoundPref(key);
+    playPing(key);
+  };
   return /*#__PURE__*/React.createElement("div", {
     className: "overlay",
     onClick: onClose
@@ -738,7 +782,18 @@ function SettingsModal({
   }, /*#__PURE__*/React.createElement("button", {
     className: "icon-btn",
     onClick: onClose
-  }, "✕")), /*#__PURE__*/React.createElement("h3", null, "Cambiar clave"), /*#__PURE__*/React.createElement("div", {
+  }, "✕")), /*#__PURE__*/React.createElement("h3", null, "Sonido de notificación"), /*#__PURE__*/React.createElement("div", {
+    className: "sound-list"
+  }, Object.entries(SOUND_PRESETS).map(([key, p]) => /*#__PURE__*/React.createElement("div", {
+    key: key,
+    className: "sound-row" + (sound === key ? " active" : ""),
+    onClick: () => chooseSound(key)
+  }, /*#__PURE__*/React.createElement("span", null, p.label), sound === key && /*#__PURE__*/React.createElement("span", null, "✓")))), /*#__PURE__*/React.createElement("div", {
+    className: "hint",
+    style: {
+      marginBottom: 18
+    }
+  }, "Se toca al elegirlo, así lo escuchás antes de guardar. Este sonido queda guardado en este celular."), /*#__PURE__*/React.createElement("h3", null, "Cambiar clave"), /*#__PURE__*/React.createElement("div", {
     className: "field"
   }, /*#__PURE__*/React.createElement("label", null, "Clave actual"), /*#__PURE__*/React.createElement("input", {
     type: "password",
@@ -1024,7 +1079,9 @@ function ConversationList({
   }, "➕ Unirme"), /*#__PURE__*/React.createElement("button", {
     className: "fab fab-dm",
     onClick: () => setShowDM(true)
-  }, "💬 Privado")), showJoin && /*#__PURE__*/React.createElement(JoinGroupModal, {
+  }, "💬 Privado")), /*#__PURE__*/React.createElement("div", {
+    className: "version-tag"
+  }, APP_VERSION), showJoin && /*#__PURE__*/React.createElement(JoinGroupModal, {
     user: user,
     onClose: () => setShowJoin(false),
     onJoined: () => {
@@ -1324,20 +1381,19 @@ function App() {
       if (msg.user_id === user.id) return;
       const conv = convRef.current.find(c => c.group_id === msg.group_id);
       if (!conv) return;
-      if (msg.group_id === openGroupRef.current) {
-        // already inside that thread — it handles its own sound/read state
-        return;
+      const isOpen = msg.group_id === openGroupRef.current;
+      if (!isOpen) {
+        setConversations(list => list.map(c => c.group_id === msg.group_id ? {
+          ...c,
+          unread: true
+        } : c));
+        convRef.current = convRef.current.map(c => c.group_id === msg.group_id ? {
+          ...c,
+          unread: true
+        } : c);
       }
-      setConversations(list => list.map(c => c.group_id === msg.group_id ? {
-        ...c,
-        unread: true
-      } : c));
-      convRef.current = convRef.current.map(c => c.group_id === msg.group_id ? {
-        ...c,
-        unread: true
-      } : c);
       if (!conv.muted) {
-        playPing();
+        if (!isOpen) playPing(); // if the thread is open, its own listener already played the sound
         const preview = msg.type === 'text' ? msg.content : msg.type === 'sticker' ? msg.content : msg.type === 'photo' ? '📷 Foto' : msg.type === 'video' ? '🎥 Video' : '🎤 Audio';
         clearTimeout(toastTimer.current);
         setToast({
