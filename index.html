@@ -550,6 +550,22 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
   }
   .conv-row.conv-unread{background:#FFF3F8;}
   .conv-row.conv-unread .conv-name{color:var(--pink-dark);}
+
+  /* VIDEO RECORDER MODAL */
+  .video-modal{max-height:88vh; overflow-y:auto;}
+  .video-live{
+    width:100%; max-height:50vh; border-radius:16px; background:#000; display:block;
+    object-fit:cover;
+  }
+  .rec-timer{
+    text-align:center; font-family:'Baloo 2',sans-serif; font-weight:700; color:#D64545;
+    margin-top:8px; font-size:15px;
+  }
+  .video-controls{
+    display:flex; align-items:center; justify-content:space-between; margin-top:14px;
+  }
+  .video-controls .round-btn{width:52px; height:52px; font-size:22px;}
+  .video-controls .round-btn.rec{background:#FF6B6B; border-color:#C93F3F;}
 </style>
 </head>
 <body>
@@ -564,7 +580,7 @@ const SUPABASE_URL = "https://ejobycpstnbzkjnlebrd.supabase.co";
 const SUPABASE_KEY = "sb_publishable_D_Q2E8Eq4cfGDpwX1N7Jbg_XKR78XZH";
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 const LS_KEY = "charla_session_v1";
-const APP_VERSION = "v2.2 · aviso visual de mensajes sin leer";
+const APP_VERSION = "v2.3 · grabar video desde la app";
 const EMOJIS = ["😀", "😂", "🥰", "😍", "😘", "😜", "😎", "🤩", "🥳", "😇", "🙃", "😉", "😊", "😢", "😭", "😡", "😱", "🤔", "🙄", "😴", "👍", "👎", "👏", "🙌", "🙏", "💪", "✌️", "🤞", "👋", "🤝", "❤️", "🧡", "💛", "💚", "💙", "💜", "🖤", "💕", "💖", "💯", "🔥", "✨", "🎉", "🎂", "🎈", "🌈", "⭐", "☀️", "🌙", "🍕", "🍔", "🍟", "🍦", "🍩", "☕", "🐶", "🐱", "🦄", "🌸"];
 const STICKERS = ["😂", "😍", "🥳", "🔥", "❤️", "👍", "🎉", "😎", "🥺", "😭", "🙌", "💯", "🌈", "🦄", "🎂", "✨"];
 const SOUND_KEY = "charla_sound_pref";
@@ -1135,6 +1151,168 @@ function ConversationList({
     onCreated: onReload
   }));
 }
+function VideoRecorderModal({
+  onClose,
+  onSend
+}) {
+  const [stream, setStream] = useState(null);
+  const [recording, setRecording] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState(null);
+  const [seconds, setSeconds] = useState(0);
+  const [uploading, setUploading] = useState(false);
+  const [err, setErr] = useState("");
+  const [facing, setFacing] = useState('environment');
+  const liveRef = useRef(null);
+  const recorderRef = useRef(null);
+  const chunksRef = useRef([]);
+  const blobRef = useRef(null);
+  const timerRef = useRef(null);
+  const maxTimerRef = useRef(null);
+  const openCamera = async mode => {
+    try {
+      if (stream) stream.getTracks().forEach(t => t.stop());
+      const s = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: mode
+        },
+        audio: true
+      });
+      setStream(s);
+      if (liveRef.current) liveRef.current.srcObject = s;
+    } catch (e) {
+      setErr("No se pudo acceder a la cámara. Revisá los permisos del navegador.");
+    }
+  };
+  useEffect(() => {
+    openCamera(facing);
+    return () => {
+      if (stream) stream.getTracks().forEach(t => t.stop());
+      clearInterval(timerRef.current);
+      clearTimeout(maxTimerRef.current);
+    };
+  }, []);
+  const flipCamera = () => {
+    const next = facing === 'environment' ? 'user' : 'environment';
+    setFacing(next);
+    openCamera(next);
+  };
+  const startRec = () => {
+    if (!stream) return;
+    chunksRef.current = [];
+    const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp8,opus') ? 'video/webm;codecs=vp8,opus' : 'video/webm';
+    const mr = new MediaRecorder(stream, {
+      mimeType
+    });
+    mr.ondataavailable = e => {
+      if (e.data.size > 0) chunksRef.current.push(e.data);
+    };
+    mr.onstop = () => {
+      const blob = new Blob(chunksRef.current, {
+        type: mimeType
+      });
+      blobRef.current = blob;
+      setPreviewUrl(URL.createObjectURL(blob));
+    };
+    mr.start();
+    recorderRef.current = mr;
+    setRecording(true);
+    setSeconds(0);
+    timerRef.current = setInterval(() => setSeconds(s => s + 1), 1000);
+    maxTimerRef.current = setTimeout(() => stopRec(), 60000); // 60s safety cap
+  };
+  const stopRec = () => {
+    if (recorderRef.current && recorderRef.current.state !== 'inactive') recorderRef.current.stop();
+    setRecording(false);
+    clearInterval(timerRef.current);
+    clearTimeout(maxTimerRef.current);
+  };
+  const retake = () => {
+    setPreviewUrl(null);
+    blobRef.current = null;
+    setSeconds(0);
+  };
+  const send = async () => {
+    if (!blobRef.current) return;
+    setUploading(true);
+    const path = `videos/${crypto.randomUUID()}.webm`;
+    const {
+      error
+    } = await sb.storage.from('chat-media').upload(path, blobRef.current, {
+      contentType: 'video/webm'
+    });
+    setUploading(false);
+    if (error) {
+      setErr("No se pudo subir el video.");
+      return;
+    }
+    const {
+      data
+    } = sb.storage.from('chat-media').getPublicUrl(path);
+    onSend(data.publicUrl);
+  };
+  const handleClose = () => {
+    if (stream) stream.getTracks().forEach(t => t.stop());
+    onClose();
+  };
+  return /*#__PURE__*/React.createElement("div", {
+    className: "overlay",
+    onClick: handleClose
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "modal video-modal",
+    onClick: e => e.stopPropagation()
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "close-row"
+  }, /*#__PURE__*/React.createElement("button", {
+    className: "icon-btn",
+    onClick: handleClose
+  }, "✕")), /*#__PURE__*/React.createElement("h3", null, "Grabar video"), err && /*#__PURE__*/React.createElement("div", {
+    className: "error-msg"
+  }, err), !previewUrl ? /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("video", {
+    ref: liveRef,
+    autoPlay: true,
+    muted: true,
+    playsInline: true,
+    className: "video-live"
+  }), recording && /*#__PURE__*/React.createElement("div", {
+    className: "rec-timer"
+  }, "🔴 ", String(Math.floor(seconds / 60)).padStart(2, '0'), ":", String(seconds % 60).padStart(2, '0')), /*#__PURE__*/React.createElement("div", {
+    className: "video-controls"
+  }, /*#__PURE__*/React.createElement("button", {
+    className: "round-btn",
+    onClick: flipCamera,
+    disabled: recording
+  }, "🔄"), /*#__PURE__*/React.createElement("button", {
+    className: "round-btn" + (recording ? " rec" : ""),
+    onClick: recording ? stopRec : startRec
+  }, recording ? '⏹️' : '⏺️'), /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: 44
+    }
+  }))) : /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("video", {
+    src: previewUrl,
+    controls: true,
+    playsInline: true,
+    className: "video-live"
+  }), /*#__PURE__*/React.createElement("div", {
+    className: "field",
+    style: {
+      display: 'flex',
+      gap: 10,
+      marginTop: 14
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    className: "btn",
+    style: {
+      background: '#B0A8BE'
+    },
+    onClick: retake,
+    disabled: uploading
+  }, "Grabar de nuevo"), /*#__PURE__*/React.createElement("button", {
+    className: "btn",
+    onClick: send,
+    disabled: uploading
+  }, uploading ? "Enviando..." : "Enviar")))));
+}
 function ChatThread({
   user,
   conversation,
@@ -1145,6 +1323,7 @@ function ChatThread({
   const [recording, setRecording] = useState(false);
   const [showEmoji, setShowEmoji] = useState(false);
   const [showStickers, setShowStickers] = useState(false);
+  const [showVideoRecorder, setShowVideoRecorder] = useState(false);
   const scrollRef = useRef(null);
   const fileRef = useRef(null);
   const mediaRecorderRef = useRef(null);
@@ -1354,6 +1533,9 @@ function ChatThread({
     onClick: () => fileRef.current.click()
   }, "📷"), /*#__PURE__*/React.createElement("button", {
     className: "round-btn",
+    onClick: () => setShowVideoRecorder(true)
+  }, "🎥"), /*#__PURE__*/React.createElement("button", {
+    className: "round-btn",
     onClick: () => {
       setShowEmoji(s => !s);
       setShowStickers(false);
@@ -1387,7 +1569,13 @@ function ChatThread({
       e.preventDefault();
       stopRecording();
     }
-  }, "🎤")));
+  }, "🎤")), showVideoRecorder && /*#__PURE__*/React.createElement(VideoRecorderModal, {
+    onClose: () => setShowVideoRecorder(false),
+    onSend: async url => {
+      setShowVideoRecorder(false);
+      await sendMessage('video', null, url);
+    }
+  }));
 }
 function App() {
   const [user, setUser] = useState(() => {
