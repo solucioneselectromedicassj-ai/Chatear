@@ -592,6 +592,21 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
   }
   .attach-item:active{background:#F1E9F7;}
   .attach-icon{font-size:24px;}
+
+  /* READ RECEIPTS */
+  .tick{font-size:11px; margin-left:4px; opacity:.7; font-weight:700;}
+  .tick-read{color:#4FC3F7; opacity:1;}
+
+  /* AUDIO RECORDING BAR */
+  .rec-bar{
+    display:flex; align-items:center; gap:10px; padding:12px 14px;
+    background:var(--card); border-top:3px solid var(--ink);
+  }
+  .rec-dot{font-size:16px; animation:rec-pulse 1s infinite;}
+  @keyframes rec-pulse{ 0%,100%{opacity:1;} 50%{opacity:.3;} }
+  .rec-label{flex:1; font-family:'Baloo 2',sans-serif; font-weight:700; color:#D64545; font-size:15px;}
+  .rec-stop{background:#FF6B6B; border-color:#C93F3F; color:#fff;}
+  .rec-bar .audio-player{flex:1;}
 </style>
 </head>
 <body>
@@ -606,7 +621,7 @@ const SUPABASE_URL = "https://ejobycpstnbzkjnlebrd.supabase.co";
 const SUPABASE_KEY = "sb_publishable_D_Q2E8Eq4cfGDpwX1N7Jbg_XKR78XZH";
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 const LS_KEY = "charla_session_v1";
-const APP_VERSION = "v2.5 · cámara directa y audio propio";
+const APP_VERSION = "v2.7 · grabar audio más fácil";
 const EMOJIS = ["😀", "😂", "🥰", "😍", "😘", "😜", "😎", "🤩", "🥳", "😇", "🙃", "😉", "😊", "😢", "😭", "😡", "😱", "🤔", "🙄", "😴", "👍", "👎", "👏", "🙌", "🙏", "💪", "✌️", "🤞", "👋", "🤝", "❤️", "🧡", "💛", "💚", "💙", "💜", "🖤", "💕", "💖", "💯", "🔥", "✨", "🎉", "🎂", "🎈", "🌈", "⭐", "☀️", "🌙", "🍕", "🍔", "🍟", "🍦", "🍩", "☕", "🐶", "🐱", "🦄", "🌸"];
 const STICKERS = ["😂", "😍", "🥳", "🔥", "❤️", "👍", "🎉", "😎", "🥺", "😭", "🙌", "💯", "🌈", "🦄", "🎂", "✨"];
 const SOUND_KEY = "charla_sound_pref";
@@ -1334,7 +1349,10 @@ function VideoRecorderModal({
   }, uploading ? "Enviando..." : "Enviar")))));
 }
 function AudioBubble({
-  src
+  src,
+  messageId,
+  userId,
+  mine
 }) {
   const audioRef = useRef(null);
   const [playing, setPlaying] = useState(false);
@@ -1347,6 +1365,12 @@ function AudioBubble({
       a.pause();
     } else {
       a.play().catch(() => {});
+      if (!mine) {
+        sb.rpc('mark_audio_played', {
+          p_user_id: userId,
+          p_message_id: messageId
+        }).then(() => {});
+      }
     }
   };
   const fmt = s => {
@@ -1403,6 +1427,8 @@ function ChatThread({
   const [showStickers, setShowStickers] = useState(false);
   const [showVideoRecorder, setShowVideoRecorder] = useState(false);
   const [showAttach, setShowAttach] = useState(false);
+  const [otherLastRead, setOtherLastRead] = useState(null);
+  const [playedByOther, setPlayedByOther] = useState(() => new Set());
   const scrollRef = useRef(null);
   const cameraRef = useRef(null);
   const galleryRef = useRef(null);
@@ -1421,6 +1447,21 @@ function ChatThread({
         p_user_id: user.id,
         p_group_id: conversation.group_id
       });
+      if (conversation.is_direct && data && data.length) {
+        const ids = data.map(m => m.id);
+        const [{
+          data: plays
+        }, {
+          data: lastRead
+        }] = await Promise.all([sb.rpc('get_audio_plays', {
+          p_message_ids: ids
+        }), sb.rpc('get_other_last_read', {
+          p_group_id: conversation.group_id,
+          p_viewer_id: user.id
+        })]);
+        setPlayedByOther(new Set((plays || []).filter(p => p.user_id !== user.id).map(p => p.message_id)));
+        setOtherLastRead(lastRead);
+      }
       sub = sb.channel('room-' + conversation.group_id).on('postgres_changes', {
         event: 'INSERT',
         schema: 'public',
@@ -1441,6 +1482,24 @@ function ChatThread({
       if (sub) sb.removeChannel(sub);
     };
   }, [conversation.group_id]);
+  useEffect(() => {
+    if (!conversation.is_direct) return;
+    const sub = sb.channel('reads-' + conversation.group_id).on('postgres_changes', {
+      event: 'UPDATE',
+      schema: 'public',
+      table: 'chat_group_members',
+      filter: `group_id=eq.${conversation.group_id}`
+    }, payload => {
+      if (payload.new.user_id !== user.id) setOtherLastRead(payload.new.last_read_at);
+    }).on('postgres_changes', {
+      event: 'INSERT',
+      schema: 'public',
+      table: 'chat_audio_plays'
+    }, payload => {
+      if (payload.new.user_id !== user.id) setPlayedByOther(s => new Set(s).add(payload.new.message_id));
+    }).subscribe();
+    return () => sb.removeChannel(sub);
+  }, [conversation.group_id, conversation.is_direct]);
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [messages]);
@@ -1505,6 +1564,10 @@ function ChatThread({
     } = sb.storage.from('chat-media').getPublicUrl(path);
     await sendMessage(isVideo ? 'video' : 'photo', null, data.publicUrl);
   };
+  const [audioPreviewUrl, setAudioPreviewUrl] = useState(null);
+  const [audioSeconds, setAudioSeconds] = useState(0);
+  const audioBlobRef = useRef(null);
+  const audioTimerRef = useRef(null);
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -1513,36 +1576,52 @@ function ChatThread({
       const mr = new MediaRecorder(stream);
       chunksRef.current = [];
       mr.ondataavailable = e => chunksRef.current.push(e.data);
-      mr.onstop = async () => {
+      mr.onstop = () => {
         const blob = new Blob(chunksRef.current, {
           type: 'audio/webm'
         });
-        const path = `audio/${crypto.randomUUID()}.webm`;
-        const {
-          error
-        } = await sb.storage.from('chat-media').upload(path, blob, {
-          contentType: 'audio/webm'
-        });
-        if (!error) {
-          const {
-            data
-          } = sb.storage.from('chat-media').getPublicUrl(path);
-          await sendMessage('audio', null, data.publicUrl);
-        }
+        audioBlobRef.current = blob;
+        setAudioPreviewUrl(URL.createObjectURL(blob));
         stream.getTracks().forEach(t => t.stop());
+        clearInterval(audioTimerRef.current);
       };
       mr.start();
       mediaRecorderRef.current = mr;
       setRecording(true);
+      setAudioSeconds(0);
+      audioTimerRef.current = setInterval(() => setAudioSeconds(s => s + 1), 1000);
     } catch (e) {
-      alert("No se pudo acceder al micrófono");
+      alert("No se pudo acceder al micrófono. Revisá que la app tenga permiso.");
     }
   };
   const stopRecording = () => {
-    if (mediaRecorderRef.current) {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
       mediaRecorderRef.current.stop();
     }
     setRecording(false);
+  };
+  const discardAudio = () => {
+    setAudioPreviewUrl(null);
+    audioBlobRef.current = null;
+    setAudioSeconds(0);
+  };
+  const sendAudio = async () => {
+    if (!audioBlobRef.current) return;
+    const path = `audio/${crypto.randomUUID()}.webm`;
+    const {
+      error
+    } = await sb.storage.from('chat-media').upload(path, audioBlobRef.current, {
+      contentType: 'audio/webm'
+    });
+    if (error) {
+      alert("No se pudo enviar el audio");
+      return;
+    }
+    const {
+      data
+    } = sb.storage.from('chat-media').getPublicUrl(path);
+    await sendMessage('audio', null, data.publicUrl);
+    discardAudio();
   };
   return /*#__PURE__*/React.createElement("div", {
     className: "screen"
@@ -1558,6 +1637,23 @@ function ChatThread({
     className: "empty-state"
   }, "Todavía no hay mensajes.", /*#__PURE__*/React.createElement("br", null), "¡Escribí el primero! 🎉"), messages.map(m => {
     const mine = m.user_id === user.id;
+    let tick = null;
+    if (mine && conversation.is_direct) {
+      if (m.type === 'audio') {
+        tick = playedByOther.has(m.id) ? /*#__PURE__*/React.createElement("span", {
+          className: "tick tick-read"
+        }, "✓✓🎧") : /*#__PURE__*/React.createElement("span", {
+          className: "tick"
+        }, "✓✓");
+      } else {
+        const read = otherLastRead && new Date(otherLastRead) >= new Date(m.created_at);
+        tick = read ? /*#__PURE__*/React.createElement("span", {
+          className: "tick tick-read"
+        }, "✓✓") : /*#__PURE__*/React.createElement("span", {
+          className: "tick"
+        }, "✓✓");
+      }
+    }
     return /*#__PURE__*/React.createElement("div", {
       key: m.id,
       className: "msg-row" + (mine ? " me" : "")
@@ -1578,10 +1674,13 @@ function ChatThread({
       src: m.media_path,
       controls: true
     }), m.type === 'audio' && /*#__PURE__*/React.createElement(AudioBubble, {
-      src: m.media_path
+      src: m.media_path,
+      messageId: m.id,
+      userId: user.id,
+      mine: mine
     }), /*#__PURE__*/React.createElement("div", {
       className: "time"
-    }, timeFmt(m.created_at))));
+    }, timeFmt(m.created_at), tick)));
   })), showEmoji && /*#__PURE__*/React.createElement("div", {
     className: "picker-panel"
   }, EMOJIS.map((e, i) => /*#__PURE__*/React.createElement("span", {
@@ -1629,7 +1728,29 @@ function ChatThread({
     }
   }, /*#__PURE__*/React.createElement("span", {
     className: "attach-icon"
-  }, "🎟️"), /*#__PURE__*/React.createElement("span", null, "Sticker"))), /*#__PURE__*/React.createElement("div", {
+  }, "🎟️"), /*#__PURE__*/React.createElement("span", null, "Sticker"))), recording ? /*#__PURE__*/React.createElement("div", {
+    className: "rec-bar"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "rec-dot"
+  }, "🔴"), /*#__PURE__*/React.createElement("span", {
+    className: "rec-label"
+  }, "Grabando... ", String(Math.floor(audioSeconds / 60)).padStart(2, '0'), ":", String(audioSeconds % 60).padStart(2, '0')), /*#__PURE__*/React.createElement("button", {
+    className: "round-btn rec-stop",
+    onClick: stopRecording
+  }, "⏹️")) : audioPreviewUrl ? /*#__PURE__*/React.createElement("div", {
+    className: "rec-bar"
+  }, /*#__PURE__*/React.createElement(AudioBubble, {
+    src: audioPreviewUrl,
+    messageId: null,
+    userId: user.id,
+    mine: true
+  }), /*#__PURE__*/React.createElement("button", {
+    className: "round-btn",
+    onClick: discardAudio
+  }, "🗑️"), /*#__PURE__*/React.createElement("button", {
+    className: "round-btn send",
+    onClick: sendAudio
+  }, "➤")) : /*#__PURE__*/React.createElement("div", {
     className: "input-bar"
   }, /*#__PURE__*/React.createElement("input", {
     type: "file",
@@ -1676,17 +1797,8 @@ function ChatThread({
     className: "round-btn send",
     onClick: sendText
   }, "➤") : /*#__PURE__*/React.createElement("button", {
-    className: "round-btn" + (recording ? " rec" : ""),
-    onMouseDown: startRecording,
-    onMouseUp: stopRecording,
-    onTouchStart: e => {
-      e.preventDefault();
-      startRecording();
-    },
-    onTouchEnd: e => {
-      e.preventDefault();
-      stopRecording();
-    }
+    className: "round-btn",
+    onClick: startRecording
   }, "🎤")), showVideoRecorder && /*#__PURE__*/React.createElement(VideoRecorderModal, {
     onClose: () => setShowVideoRecorder(false),
     onSend: async url => {
