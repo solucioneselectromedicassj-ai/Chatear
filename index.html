@@ -607,8 +607,24 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
   .rec-label{flex:1; font-family:'Baloo 2',sans-serif; font-weight:700; color:#D64545; font-size:15px;}
   .rec-stop{background:#FF6B6B; border-color:#C93F3F; color:#fff;}
   .rec-bar .audio-player{flex:1;}
+
+  /* PROFILE PHOTO */
+  .avatar-edit-row{display:flex; align-items:center; gap:16px; margin-bottom:20px;}
+  .avatar-edit-preview{
+    width:72px; height:72px; border-radius:50%; object-fit:cover; border:3px solid var(--ink);
+    display:flex; align-items:center; justify-content:center; font-family:'Baloo 2',sans-serif;
+    font-weight:700; color:#fff; font-size:24px; flex-shrink:0;
+  }
+  img.avatar, img.avatar-sm{object-fit:cover;}
 </style>
 </head>
+<script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
+<script>
+window.OneSignalDeferred = window.OneSignalDeferred || [];
+OneSignalDeferred.push(async function(OneSignal) {
+  await OneSignal.init({ appId: "444915cf-67d7-41ca-9203-9483af455fae" });
+});
+</script>
 <body>
 <div id="root"></div>
 <script>const {
@@ -621,35 +637,40 @@ const SUPABASE_URL = "https://ejobycpstnbzkjnlebrd.supabase.co";
 const SUPABASE_KEY = "sb_publishable_D_Q2E8Eq4cfGDpwX1N7Jbg_XKR78XZH";
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 const LS_KEY = "charla_session_v1";
-const APP_VERSION = "v2.7 · grabar audio más fácil";
+const APP_VERSION = "v3.0 · notificaciones push + foto de perfil";
 const EMOJIS = ["😀", "😂", "🥰", "😍", "😘", "😜", "😎", "🤩", "🥳", "😇", "🙃", "😉", "😊", "😢", "😭", "😡", "😱", "🤔", "🙄", "😴", "👍", "👎", "👏", "🙌", "🙏", "💪", "✌️", "🤞", "👋", "🤝", "❤️", "🧡", "💛", "💚", "💙", "💜", "🖤", "💕", "💖", "💯", "🔥", "✨", "🎉", "🎂", "🎈", "🌈", "⭐", "☀️", "🌙", "🍕", "🍔", "🍟", "🍦", "🍩", "☕", "🐶", "🐱", "🦄", "🌸"];
 const STICKERS = ["😂", "😍", "🥳", "🔥", "❤️", "👍", "🎉", "😎", "🥺", "😭", "🙌", "💯", "🌈", "🦄", "🎂", "✨"];
 const SOUND_KEY = "charla_sound_pref";
 const SOUND_PRESETS = {
   campanita: {
     label: "🔔 Campanita",
-    notes: [[880, 1320, 0.25, 0.15], [1100, 1100, 0.18, 0.13]],
-    gaps: [0, 140]
+    notes: [[880, 1320, 0.35, 0.85], [1100, 1100, 0.28, 0.75]],
+    gaps: [0, 150],
+    wave: 'triangle'
   },
   pop: {
     label: "🔵 Pop",
-    notes: [[520, 300, 0.14, 0.18]],
-    gaps: [0]
+    notes: [[520, 300, 0.22, 0.9]],
+    gaps: [0],
+    wave: 'square'
   },
   silbido: {
     label: "🎵 Silbido",
-    notes: [[600, 1600, 0.3, 0.12]],
-    gaps: [0]
+    notes: [[600, 1800, 0.4, 0.8]],
+    gaps: [0],
+    wave: 'sawtooth'
   },
   suave: {
     label: "🌙 Suave",
-    notes: [[440, 440, 0.35, 0.09], [660, 660, 0.35, 0.08]],
-    gaps: [0, 120]
+    notes: [[440, 440, 0.4, 0.6]],
+    gaps: [0],
+    wave: 'triangle'
   },
   alerta: {
-    label: "⚡ Alerta",
-    notes: [[700, 700, 0.1, 0.16], [700, 700, 0.1, 0.16], [700, 700, 0.1, 0.16]],
-    gaps: [0, 110, 220]
+    label: "⚡ Alerta (más fuerte)",
+    notes: [[880, 880, 0.15, 0.9], [880, 880, 0.15, 0.9], [880, 880, 0.15, 0.9]],
+    gaps: [0, 180, 360],
+    wave: 'square'
   }
 };
 function getSoundPref() {
@@ -658,8 +679,58 @@ function getSoundPref() {
 function setSoundPref(key) {
   localStorage.setItem(SOUND_KEY, key);
 }
+function registerPush(userId) {
+  try {
+    window.OneSignalDeferred = window.OneSignalDeferred || [];
+    window.OneSignalDeferred.push(async function (OneSignal) {
+      try {
+        await OneSignal.login(userId);
+        if (OneSignal.Notifications && OneSignal.Notifications.permission !== true) {
+          await OneSignal.Notifications.requestPermission();
+        }
+      } catch (e) {}
+    });
+  } catch (e) {}
+}
 function initials(name) {
   return (name || "?").trim().slice(0, 2).toUpperCase();
+}
+function Avatar({
+  userId,
+  name,
+  color,
+  usersById,
+  size,
+  className,
+  style
+}) {
+  const info = usersById && userId ? usersById.get(userId) : null;
+  const avatarUrl = info?.avatar_url;
+  const finalColor = info?.color || color || '#7C3AED';
+  const finalName = info?.name || name || '?';
+  const dim = size || 38;
+  const baseStyle = {
+    width: dim,
+    height: dim,
+    ...(style || {})
+  };
+  if (avatarUrl) {
+    return /*#__PURE__*/React.createElement("img", {
+      src: avatarUrl,
+      className: className || "avatar",
+      style: {
+        ...baseStyle,
+        objectFit: 'cover'
+      }
+    });
+  }
+  return /*#__PURE__*/React.createElement("div", {
+    className: className || "avatar",
+    style: {
+      ...baseStyle,
+      background: finalColor
+    }
+  }, initials(finalName));
 }
 function timeFmt(iso) {
   const d = new Date(iso);
@@ -681,6 +752,9 @@ document.addEventListener('pointerdown', unlockAudio);
 document.addEventListener('touchstart', unlockAudio);
 function playPing(soundKey) {
   try {
+    if (navigator.vibrate) navigator.vibrate([250, 90, 250]);
+  } catch (e) {}
+  try {
     if (!sharedAudioCtx) {
       sharedAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
     }
@@ -693,7 +767,7 @@ function playPing(soundKey) {
             const [f1, f2, dur, vol] = note;
             const o = ctx.createOscillator();
             const g = ctx.createGain();
-            o.type = 'sine';
+            o.type = preset.wave || 'triangle';
             o.frequency.setValueAtTime(f1, ctx.currentTime);
             if (f2 !== f1) o.frequency.exponentialRampToValueAtTime(f2, ctx.currentTime + dur * 0.4);
             g.gain.setValueAtTime(vol, ctx.currentTime);
@@ -758,6 +832,7 @@ function Login({
     }
     setLoading(false);
     localStorage.setItem(LS_KEY, JSON.stringify(user));
+    registerPush(user.id);
     onLogin(user);
   };
   return /*#__PURE__*/React.createElement("div", {
@@ -810,13 +885,17 @@ function Login({
 }
 function SettingsModal({
   user,
-  onClose
+  onClose,
+  onUserUpdate
 }) {
   const [oldPin, setOldPin] = useState("");
   const [newPin, setNewPin] = useState("");
   const [msg, setMsg] = useState("");
   const [loading, setLoading] = useState(false);
   const [sound, setSound] = useState(getSoundPref());
+  const [avatarUrl, setAvatarUrl] = useState(user.avatar_url || null);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const avatarFileRef = useRef(null);
   const submit = async () => {
     setMsg("");
     if (newPin.trim().length < 3) {
@@ -846,6 +925,35 @@ function SettingsModal({
     setSoundPref(key);
     playPing(key);
   };
+  const uploadAvatar = async file => {
+    if (!file) return;
+    setUploadingAvatar(true);
+    const ext = file.name.split('.').pop() || 'jpg';
+    const path = `avatars/${user.id}-${crypto.randomUUID()}.${ext}`;
+    const {
+      error
+    } = await sb.storage.from('chat-media').upload(path, file, {
+      contentType: file.type || 'image/jpeg'
+    });
+    if (error) {
+      setUploadingAvatar(false);
+      alert("No se pudo subir la foto");
+      return;
+    }
+    const {
+      data
+    } = sb.storage.from('chat-media').getPublicUrl(path);
+    await sb.rpc('set_avatar', {
+      p_user_id: user.id,
+      p_avatar_url: data.publicUrl
+    });
+    setAvatarUrl(data.publicUrl);
+    setUploadingAvatar(false);
+    onUserUpdate({
+      ...user,
+      avatar_url: data.publicUrl
+    });
+  };
   return /*#__PURE__*/React.createElement("div", {
     className: "overlay",
     onClick: onClose
@@ -857,7 +965,33 @@ function SettingsModal({
   }, /*#__PURE__*/React.createElement("button", {
     className: "icon-btn",
     onClick: onClose
-  }, "✕")), /*#__PURE__*/React.createElement("h3", null, "Sonido de notificación"), /*#__PURE__*/React.createElement("div", {
+  }, "✕")), /*#__PURE__*/React.createElement("h3", null, "Foto de perfil"), /*#__PURE__*/React.createElement("div", {
+    className: "avatar-edit-row"
+  }, avatarUrl ? /*#__PURE__*/React.createElement("img", {
+    src: avatarUrl,
+    className: "avatar-edit-preview"
+  }) : /*#__PURE__*/React.createElement("div", {
+    className: "avatar-edit-preview avatar-edit-empty",
+    style: {
+      background: user.color
+    }
+  }, initials(user.name)), /*#__PURE__*/React.createElement("input", {
+    type: "file",
+    accept: "image/*",
+    ref: avatarFileRef,
+    style: {
+      display: 'none'
+    },
+    onChange: e => uploadAvatar(e.target.files[0])
+  }), /*#__PURE__*/React.createElement("button", {
+    className: "btn",
+    style: {
+      width: 'auto',
+      padding: '10px 18px'
+    },
+    onClick: () => avatarFileRef.current.click(),
+    disabled: uploadingAvatar
+  }, uploadingAvatar ? "Subiendo..." : "Cambiar foto")), /*#__PURE__*/React.createElement("h3", null, "Sonido de notificación"), /*#__PURE__*/React.createElement("div", {
     className: "sound-list"
   }, Object.entries(SOUND_PRESETS).map(([key, p]) => /*#__PURE__*/React.createElement("div", {
     key: key,
@@ -992,7 +1126,10 @@ function NewDMModal({
     key: c.id,
     className: "contact-row",
     onClick: () => pick(c)
-  }, /*#__PURE__*/React.createElement("div", {
+  }, c.avatar_url ? /*#__PURE__*/React.createElement("img", {
+    src: c.avatar_url,
+    className: "avatar-sm"
+  }) : /*#__PURE__*/React.createElement("div", {
     className: "avatar-sm",
     style: {
       background: c.color
@@ -1088,7 +1225,8 @@ function ConversationList({
   onOpen,
   onReload,
   onSettings,
-  onLogout
+  onLogout,
+  usersById
 }) {
   const [showJoin, setShowJoin] = useState(false);
   const [showDM, setShowDM] = useState(false);
@@ -1108,11 +1246,16 @@ function ConversationList({
   }, /*#__PURE__*/React.createElement("div", {
     className: "topbar"
   }, /*#__PURE__*/React.createElement("div", {
-    className: "avatar",
     style: {
-      background: user.color
+      position: 'relative'
     }
-  }, initials(user.name), unreadCount > 0 && /*#__PURE__*/React.createElement("span", {
+  }, /*#__PURE__*/React.createElement(Avatar, {
+    userId: user.id,
+    name: user.name,
+    color: user.color,
+    usersById: usersById,
+    size: 38
+  }), unreadCount > 0 && /*#__PURE__*/React.createElement("span", {
     className: "badge-count"
   }, unreadCount)), /*#__PURE__*/React.createElement("h2", null, "Charla"), /*#__PURE__*/React.createElement("button", {
     className: "icon-btn",
@@ -1130,12 +1273,18 @@ function ConversationList({
     key: c.group_id,
     className: "conv-row" + (c.unread ? " conv-unread" : ""),
     onClick: () => onOpen(c)
-  }, /*#__PURE__*/React.createElement("div", {
+  }, c.is_direct ? /*#__PURE__*/React.createElement(Avatar, {
+    userId: c.other_user_id,
+    name: c.display_name,
+    color: "#3DDC97",
+    usersById: usersById,
+    size: 38
+  }) : /*#__PURE__*/React.createElement("div", {
     className: "avatar",
     style: {
-      background: c.is_direct ? '#3DDC97' : '#FF4D8D'
+      background: '#FF4D8D'
     }
-  }, c.is_direct ? '💬' : initials(c.display_name)), /*#__PURE__*/React.createElement("div", {
+  }, initials(c.display_name)), /*#__PURE__*/React.createElement("div", {
     style: {
       flex: 1
     }
@@ -1418,7 +1567,8 @@ function AudioBubble({
 function ChatThread({
   user,
   conversation,
-  onBack
+  onBack,
+  usersById
 }) {
   const [messages, setMessages] = useState([]);
   const [text, setText] = useState("");
@@ -1657,12 +1807,14 @@ function ChatThread({
     return /*#__PURE__*/React.createElement("div", {
       key: m.id,
       className: "msg-row" + (mine ? " me" : "")
-    }, /*#__PURE__*/React.createElement("div", {
-      className: "avatar-sm",
-      style: {
-        background: m.sender_color
-      }
-    }, initials(m.sender_name)), /*#__PURE__*/React.createElement("div", {
+    }, /*#__PURE__*/React.createElement(Avatar, {
+      userId: m.user_id,
+      name: m.sender_name,
+      color: m.sender_color,
+      usersById: usersById,
+      size: 28,
+      className: "avatar-sm"
+    }), /*#__PURE__*/React.createElement("div", {
       className: "bubble"
     }, !mine && /*#__PURE__*/React.createElement("div", {
       className: "sender-name"
@@ -1819,12 +1971,38 @@ function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [conversations, setConversations] = useState([]);
   const [toast, setToast] = useState(null);
+  const [usersById, setUsersById] = useState(() => new Map());
   const convRef = useRef([]);
   const openGroupRef = useRef(null);
   const toastTimer = useRef(null);
   useEffect(() => {
     openGroupRef.current = conversation ? conversation.group_id : null;
   }, [conversation]);
+  useEffect(() => {
+    if (user) registerPush(user.id);
+  }, [user]);
+  useEffect(() => {
+    sb.from('chat_users_public').select('*').then(({
+      data
+    }) => {
+      setUsersById(new Map((data || []).map(u => [u.id, u])));
+    });
+    const sub = sb.channel('users-live').on('postgres_changes', {
+      event: '*',
+      schema: 'public',
+      table: 'chat_users'
+    }, payload => {
+      const row = payload.new;
+      if (!row) return;
+      setUsersById(m => new Map(m).set(row.id, {
+        id: row.id,
+        name: row.name,
+        color: row.color,
+        avatar_url: row.avatar_url
+      }));
+    }).subscribe();
+    return () => sb.removeChannel(sub);
+  }, []);
   const loadConversations = useCallback(() => {
     if (!user) return;
     sb.rpc('get_my_conversations', {
@@ -1910,7 +2088,8 @@ function App() {
   }, toast.body)), conversation ? /*#__PURE__*/React.createElement(ChatThread, {
     user: user,
     conversation: conversation,
-    onBack: () => setConversation(null)
+    onBack: () => setConversation(null),
+    usersById: usersById
   }) : /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(ConversationList, {
     user: user,
     conversations: conversations,
@@ -1920,10 +2099,15 @@ function App() {
     onLogout: () => {
       localStorage.removeItem(LS_KEY);
       setUser(null);
-    }
+    },
+    usersById: usersById
   }), showSettings && /*#__PURE__*/React.createElement(SettingsModal, {
     user: user,
-    onClose: () => setShowSettings(false)
+    onClose: () => setShowSettings(false),
+    onUserUpdate: u => {
+      setUser(u);
+      localStorage.setItem(LS_KEY, JSON.stringify(u));
+    }
   })));
 }
 ReactDOM.createRoot(document.getElementById('root')).render(/*#__PURE__*/React.createElement(App, null));</script>
