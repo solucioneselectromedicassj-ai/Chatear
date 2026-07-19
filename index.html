@@ -631,6 +631,12 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
 
   /* PUSH BLOCKED WARNING VARIANT */
   .push-banner-blocked{background:#FFE1A8; color:#7A4A00;}
+
+  /* PUSH DIAGNOSTIC BOX */
+  .push-diag-box{
+    background:#F1E9F7; border-radius:12px; padding:12px; font-size:13px; font-weight:700;
+    white-space:pre-line; margin-bottom:16px; color:var(--ink);
+  }
 </style>
 </head>
 <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
@@ -652,7 +658,7 @@ const SUPABASE_URL = "https://ejobycpstnbzkjnlebrd.supabase.co";
 const SUPABASE_KEY = "sb_publishable_D_Q2E8Eq4cfGDpwX1N7Jbg_XKR78XZH";
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 const LS_KEY = "charla_session_v1";
-const APP_VERSION = "v3.2 · diagnóstico si el push no carga";
+const APP_VERSION = "v3.3 · diagnóstico detallado de push";
 const EMOJIS = ["😀", "😂", "🥰", "😍", "😘", "😜", "😎", "🤩", "🥳", "😇", "🙃", "😉", "😊", "😢", "😭", "😡", "😱", "🤔", "🙄", "😴", "👍", "👎", "👏", "🙌", "🙏", "💪", "✌️", "🤞", "👋", "🤝", "❤️", "🧡", "💛", "💚", "💙", "💜", "🖤", "💕", "💖", "💯", "🔥", "✨", "🎉", "🎂", "🎈", "🌈", "⭐", "☀️", "🌙", "🍕", "🍔", "🍟", "🍦", "🍩", "☕", "🐶", "🐱", "🦄", "🌸"];
 const STICKERS = ["😂", "😍", "🥳", "🔥", "❤️", "👍", "🎉", "😎", "🥺", "😭", "🙌", "💯", "🌈", "🦄", "🎂", "✨"];
 const SOUND_KEY = "charla_sound_pref";
@@ -910,7 +916,33 @@ function SettingsModal({
   const [sound, setSound] = useState(getSoundPref());
   const [avatarUrl, setAvatarUrl] = useState(user.avatar_url || null);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [pushDiag, setPushDiag] = useState(null);
   const avatarFileRef = useRef(null);
+  const runPushDiagnostic = () => {
+    setPushDiag("Consultando...");
+    window.OneSignalDeferred = window.OneSignalDeferred || [];
+    let answered = false;
+    window.OneSignalDeferred.push(async OneSignal => {
+      answered = true;
+      try {
+        const perm = OneSignal.Notifications.permission;
+        const subId = OneSignal.User.PushSubscription.id;
+        const optedIn = OneSignal.User.PushSubscription.optedIn;
+        const extId = OneSignal.User.externalId;
+        setPushDiag(`Permiso navegador: ${perm ? "sí" : "no"}\n` + `Suscripción activa: ${optedIn ? "sí" : "no"}\n` + `ID de suscripción: ${subId || "(ninguno)"}\n` + `Vinculado a tu usuario: ${extId === user.id ? "sí ✓" : extId ? "NO (id distinto: " + extId + ")" : "NO vinculado"}`);
+        if (extId !== user.id) {
+          try {
+            await OneSignal.login(user.id);
+          } catch (e) {}
+        }
+      } catch (e) {
+        setPushDiag("Error leyendo el estado: " + String(e));
+      }
+    });
+    setTimeout(() => {
+      if (!answered) setPushDiag("OneSignal no respondió (no cargó en este navegador).");
+    }, 4000);
+  };
   const submit = async () => {
     setMsg("");
     if (newPin.trim().length < 3) {
@@ -1006,7 +1038,16 @@ function SettingsModal({
     },
     onClick: () => avatarFileRef.current.click(),
     disabled: uploadingAvatar
-  }, uploadingAvatar ? "Subiendo..." : "Cambiar foto")), /*#__PURE__*/React.createElement("h3", null, "Sonido de notificación"), /*#__PURE__*/React.createElement("div", {
+  }, uploadingAvatar ? "Subiendo..." : "Cambiar foto")), /*#__PURE__*/React.createElement("h3", null, "Notificaciones push"), /*#__PURE__*/React.createElement("button", {
+    className: "btn",
+    style: {
+      background: '#3DDC97',
+      marginBottom: 10
+    },
+    onClick: runPushDiagnostic
+  }, "Ver estado"), pushDiag && /*#__PURE__*/React.createElement("div", {
+    className: "push-diag-box"
+  }, pushDiag), /*#__PURE__*/React.createElement("h3", null, "Sonido de notificación"), /*#__PURE__*/React.createElement("div", {
     className: "sound-list"
   }, Object.entries(SOUND_PRESETS).map(([key, p]) => /*#__PURE__*/React.createElement("div", {
     key: key,
