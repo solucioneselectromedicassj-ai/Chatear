@@ -628,6 +628,9 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
   img.avatar, img.avatar-sm{
     aspect-ratio:1/1; -webkit-user-drag:none; flex-shrink:0; display:block;
   }
+
+  /* PUSH BLOCKED WARNING VARIANT */
+  .push-banner-blocked{background:#FFE1A8; color:#7A4A00;}
 </style>
 </head>
 <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
@@ -649,7 +652,7 @@ const SUPABASE_URL = "https://ejobycpstnbzkjnlebrd.supabase.co";
 const SUPABASE_KEY = "sb_publishable_D_Q2E8Eq4cfGDpwX1N7Jbg_XKR78XZH";
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 const LS_KEY = "charla_session_v1";
-const APP_VERSION = "v3.1 · botón para activar notificaciones";
+const APP_VERSION = "v3.2 · diagnóstico si el push no carga";
 const EMOJIS = ["😀", "😂", "🥰", "😍", "😘", "😜", "😎", "🤩", "🥳", "😇", "🙃", "😉", "😊", "😢", "😭", "😡", "😱", "🤔", "🙄", "😴", "👍", "👎", "👏", "🙌", "🙏", "💪", "✌️", "🤞", "👋", "🤝", "❤️", "🧡", "💛", "💚", "💙", "💜", "🖤", "💕", "💖", "💯", "🔥", "✨", "🎉", "🎂", "🎈", "🌈", "⭐", "☀️", "🌙", "🍕", "🍔", "🍟", "🍦", "🍩", "☕", "🐶", "🐱", "🦄", "🌸"];
 const STICKERS = ["😂", "😍", "🥳", "🔥", "❤️", "👍", "🎉", "😎", "🥺", "😭", "🙌", "💯", "🌈", "🦄", "🎂", "✨"];
 const SOUND_KEY = "charla_sound_pref";
@@ -1244,18 +1247,32 @@ function ConversationList({
   const [showDM, setShowDM] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
   const [pushEnabled, setPushEnabled] = useState(null); // null = unknown yet
+  const [pushBlocked, setPushBlocked] = useState(false); // OneSignal never loaded at all
 
   useEffect(() => {
+    let resolved = false;
     window.OneSignalDeferred = window.OneSignalDeferred || [];
     window.OneSignalDeferred.push(async OneSignal => {
+      resolved = true;
       try {
         setPushEnabled(!!OneSignal.Notifications.permission);
       } catch (e) {
         setPushEnabled(false);
       }
     });
+    const timer = setTimeout(() => {
+      if (!resolved) {
+        setPushEnabled(false);
+        setPushBlocked(true);
+      }
+    }, 4000);
+    return () => clearTimeout(timer);
   }, []);
   const activatePush = () => {
+    if (pushBlocked) {
+      alert("El sistema de notificaciones no cargó en este celular. Puede estar bloqueado por un bloqueador de anuncios, DNS privado (ej: AdGuard) o el modo \"ahorro de datos\" del navegador. Probá desactivarlo para este sitio, o desde otra red (datos móviles en vez de wifi, o al revés).");
+      return;
+    }
     window.OneSignalDeferred = window.OneSignalDeferred || [];
     window.OneSignalDeferred.push(async OneSignal => {
       try {
@@ -1300,9 +1317,9 @@ function ConversationList({
     className: "icon-btn",
     onClick: onLogout
   }, "🚪")), pushEnabled === false && /*#__PURE__*/React.createElement("div", {
-    className: "push-banner",
+    className: "push-banner" + (pushBlocked ? " push-banner-blocked" : ""),
     onClick: activatePush
-  }, "🔔 Activar notificaciones (tocá acá) — para recibir avisos aunque tengas la app cerrada"), unreadCount > 0 && /*#__PURE__*/React.createElement("div", {
+  }, pushBlocked ? "⚠️ Las notificaciones no cargaron en este celular (tocá para más info)" : "🔔 Activar notificaciones (tocá acá) — para recibir avisos aunque tengas la app cerrada"), unreadCount > 0 && /*#__PURE__*/React.createElement("div", {
     className: "unread-banner"
   }, "📬 Tenés ", unreadCount, " chat", unreadCount > 1 ? 's' : '', " sin leer"), /*#__PURE__*/React.createElement("div", {
     className: "conv-list"
