@@ -616,6 +616,18 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
     font-weight:700; color:#fff; font-size:24px; flex-shrink:0;
   }
   img.avatar, img.avatar-sm{object-fit:cover;}
+
+  /* PUSH PERMISSION BANNER */
+  .push-banner{
+    background:var(--mint); color:var(--ink); font-weight:800; font-size:13px; text-align:center;
+    padding:10px 14px; border-bottom:2px solid var(--ink); cursor:pointer;
+  }
+  .push-banner:active{opacity:.85;}
+
+  /* Defensive avatar sizing (some phones ignore inline width/height on <img> otherwise) */
+  img.avatar, img.avatar-sm{
+    aspect-ratio:1/1; -webkit-user-drag:none; flex-shrink:0; display:block;
+  }
 </style>
 </head>
 <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
@@ -637,7 +649,7 @@ const SUPABASE_URL = "https://ejobycpstnbzkjnlebrd.supabase.co";
 const SUPABASE_KEY = "sb_publishable_D_Q2E8Eq4cfGDpwX1N7Jbg_XKR78XZH";
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 const LS_KEY = "charla_session_v1";
-const APP_VERSION = "v3.0 · notificaciones push + foto de perfil";
+const APP_VERSION = "v3.1 · botón para activar notificaciones";
 const EMOJIS = ["😀", "😂", "🥰", "😍", "😘", "😜", "😎", "🤩", "🥳", "😇", "🙃", "😉", "😊", "😢", "😭", "😡", "😱", "🤔", "🙄", "😴", "👍", "👎", "👏", "🙌", "🙏", "💪", "✌️", "🤞", "👋", "🤝", "❤️", "🧡", "💛", "💚", "💙", "💜", "🖤", "💕", "💖", "💯", "🔥", "✨", "🎉", "🎂", "🎈", "🌈", "⭐", "☀️", "🌙", "🍕", "🍔", "🍟", "🍦", "🍩", "☕", "🐶", "🐱", "🦄", "🌸"];
 const STICKERS = ["😂", "😍", "🥳", "🔥", "❤️", "👍", "🎉", "😎", "🥺", "😭", "🙌", "💯", "🌈", "🦄", "🎂", "✨"];
 const SOUND_KEY = "charla_sound_pref";
@@ -1231,6 +1243,30 @@ function ConversationList({
   const [showJoin, setShowJoin] = useState(false);
   const [showDM, setShowDM] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
+  const [pushEnabled, setPushEnabled] = useState(null); // null = unknown yet
+
+  useEffect(() => {
+    window.OneSignalDeferred = window.OneSignalDeferred || [];
+    window.OneSignalDeferred.push(async OneSignal => {
+      try {
+        setPushEnabled(!!OneSignal.Notifications.permission);
+      } catch (e) {
+        setPushEnabled(false);
+      }
+    });
+  }, []);
+  const activatePush = () => {
+    window.OneSignalDeferred = window.OneSignalDeferred || [];
+    window.OneSignalDeferred.push(async OneSignal => {
+      try {
+        await OneSignal.Notifications.requestPermission();
+        await OneSignal.login(user.id);
+        setPushEnabled(!!OneSignal.Notifications.permission);
+      } catch (e) {
+        alert("No se pudo activar. Revisá que el navegador no tenga las notificaciones bloqueadas para este sitio.");
+      }
+    });
+  };
   const toggleMute = async (e, c) => {
     e.stopPropagation();
     await sb.rpc('set_mute', {
@@ -1263,7 +1299,10 @@ function ConversationList({
   }, "⚙️"), /*#__PURE__*/React.createElement("button", {
     className: "icon-btn",
     onClick: onLogout
-  }, "🚪")), unreadCount > 0 && /*#__PURE__*/React.createElement("div", {
+  }, "🚪")), pushEnabled === false && /*#__PURE__*/React.createElement("div", {
+    className: "push-banner",
+    onClick: activatePush
+  }, "🔔 Activar notificaciones (tocá acá) — para recibir avisos aunque tengas la app cerrada"), unreadCount > 0 && /*#__PURE__*/React.createElement("div", {
     className: "unread-banner"
   }, "📬 Tenés ", unreadCount, " chat", unreadCount > 1 ? 's' : '', " sin leer"), /*#__PURE__*/React.createElement("div", {
     className: "conv-list"
