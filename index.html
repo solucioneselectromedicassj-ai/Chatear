@@ -418,9 +418,9 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
   .empty-state{margin:auto; text-align:center; color:var(--ink-soft); font-weight:700; padding:20px;}
   .msg-row{display:flex; gap:8px; max-width:88%; min-width:0;}
   .msg-row.me{align-self:flex-end; flex-direction:row-reverse;}
-  .msg-row .avatar-sm{
+  .avatar-sm{
     width:28px;height:28px;border-radius:50%; flex-shrink:0; display:flex; align-items:center; justify-content:center;
-    font-family:'Baloo 2',sans-serif; font-size:12px; font-weight:700; color:#fff; margin-top:2px;
+    font-family:'Baloo 2',sans-serif; font-size:12px; font-weight:700; color:#fff; margin-top:2px; object-fit:cover;
   }
   .bubble{
     padding:10px 14px; border-radius:18px; position:relative; word-wrap:break-word;
@@ -455,10 +455,10 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
   .overlay{position:fixed; inset:0; background:rgba(43,33,64,.45); display:flex; align-items:flex-end; justify-content:center; z-index:20;}
   .modal{
     background:var(--card); border-radius:24px 24px 0 0; padding:24px; width:100%; max-width:520px;
-    border:3px solid var(--ink); border-bottom:none;
+    border:3px solid var(--ink); border-bottom:none; max-height:85vh; overflow-y:auto; box-sizing:border-box;
   }
   .modal h3{margin:0 0 16px;}
-  .close-row{display:flex; justify-content:flex-end;}
+  .close-row{display:flex; justify-content:flex-end; position:sticky; top:-24px; margin:-24px -24px 8px; padding:14px 14px 0; background:var(--card); z-index:2;}
   ::-webkit-scrollbar{width:0;}
 
   /* CONVERSATION LIST */
@@ -658,7 +658,7 @@ const SUPABASE_URL = "https://ejobycpstnbzkjnlebrd.supabase.co";
 const SUPABASE_KEY = "sb_publishable_D_Q2E8Eq4cfGDpwX1N7Jbg_XKR78XZH";
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 const LS_KEY = "charla_session_v1";
-const APP_VERSION = "v3.3 · diagnóstico detallado de push";
+const APP_VERSION = "v3.5 · fotos, ajustes y botón atrás";
 const EMOJIS = ["😀", "😂", "🥰", "😍", "😘", "😜", "😎", "🤩", "🥳", "😇", "🙃", "😉", "😊", "😢", "😭", "😡", "😱", "🤔", "🙄", "😴", "👍", "👎", "👏", "🙌", "🙏", "💪", "✌️", "🤞", "👋", "🤝", "❤️", "🧡", "💛", "💚", "💙", "💜", "🖤", "💕", "💖", "💯", "🔥", "✨", "🎉", "🎂", "🎈", "🌈", "⭐", "☀️", "🌙", "🍕", "🍔", "🍟", "🍦", "🍩", "☕", "🐶", "🐱", "🦄", "🌸"];
 const STICKERS = ["😂", "😍", "🥳", "🔥", "❤️", "👍", "🎉", "😎", "🥺", "😭", "🙌", "💯", "🌈", "🦄", "🎂", "✨"];
 const SOUND_KEY = "charla_sound_pref";
@@ -916,33 +916,7 @@ function SettingsModal({
   const [sound, setSound] = useState(getSoundPref());
   const [avatarUrl, setAvatarUrl] = useState(user.avatar_url || null);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
-  const [pushDiag, setPushDiag] = useState(null);
   const avatarFileRef = useRef(null);
-  const runPushDiagnostic = () => {
-    setPushDiag("Consultando...");
-    window.OneSignalDeferred = window.OneSignalDeferred || [];
-    let answered = false;
-    window.OneSignalDeferred.push(async OneSignal => {
-      answered = true;
-      try {
-        const perm = OneSignal.Notifications.permission;
-        const subId = OneSignal.User.PushSubscription.id;
-        const optedIn = OneSignal.User.PushSubscription.optedIn;
-        const extId = OneSignal.User.externalId;
-        setPushDiag(`Permiso navegador: ${perm ? "sí" : "no"}\n` + `Suscripción activa: ${optedIn ? "sí" : "no"}\n` + `ID de suscripción: ${subId || "(ninguno)"}\n` + `Vinculado a tu usuario: ${extId === user.id ? "sí ✓" : extId ? "NO (id distinto: " + extId + ")" : "NO vinculado"}`);
-        if (extId !== user.id) {
-          try {
-            await OneSignal.login(user.id);
-          } catch (e) {}
-        }
-      } catch (e) {
-        setPushDiag("Error leyendo el estado: " + String(e));
-      }
-    });
-    setTimeout(() => {
-      if (!answered) setPushDiag("OneSignal no respondió (no cargó en este navegador).");
-    }, 4000);
-  };
   const submit = async () => {
     setMsg("");
     if (newPin.trim().length < 3) {
@@ -1038,16 +1012,7 @@ function SettingsModal({
     },
     onClick: () => avatarFileRef.current.click(),
     disabled: uploadingAvatar
-  }, uploadingAvatar ? "Subiendo..." : "Cambiar foto")), /*#__PURE__*/React.createElement("h3", null, "Notificaciones push"), /*#__PURE__*/React.createElement("button", {
-    className: "btn",
-    style: {
-      background: '#3DDC97',
-      marginBottom: 10
-    },
-    onClick: runPushDiagnostic
-  }, "Ver estado"), pushDiag && /*#__PURE__*/React.createElement("div", {
-    className: "push-diag-box"
-  }, pushDiag), /*#__PURE__*/React.createElement("h3", null, "Sonido de notificación"), /*#__PURE__*/React.createElement("div", {
+  }, uploadingAvatar ? "Subiendo..." : "Cambiar foto")), /*#__PURE__*/React.createElement("h3", null, "Sonido de notificación"), /*#__PURE__*/React.createElement("div", {
     className: "sound-list"
   }, Object.entries(SOUND_PRESETS).map(([key, p]) => /*#__PURE__*/React.createElement("div", {
     key: key,
@@ -1876,7 +1841,7 @@ function ChatThread({
     className: "topbar"
   }, /*#__PURE__*/React.createElement("button", {
     className: "icon-btn",
-    onClick: onBack
+    onClick: () => window.history.back()
   }, "←"), /*#__PURE__*/React.createElement("h2", null, conversation.display_name)), /*#__PURE__*/React.createElement("div", {
     className: "chat-area",
     ref: scrollRef
@@ -2172,7 +2137,15 @@ function App() {
     } : x));
     setToast(null);
     setConversation(c);
+    window.history.pushState({
+      chatOpen: true
+    }, '', '');
   };
+  useEffect(() => {
+    const onPop = () => setConversation(null);
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
   return /*#__PURE__*/React.createElement(React.Fragment, null, toast && /*#__PURE__*/React.createElement("div", {
     className: "toast",
     onClick: () => {
